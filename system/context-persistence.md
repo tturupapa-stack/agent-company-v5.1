@@ -40,9 +40,9 @@ EOF
 │   ├── architecture.md         # CTO Phase 2 산출물
 │   ├── design-audit.md         # CDO Phase 1 산출물
 │   ├── design-delivery.md      # CDO → CTO 핸드오프
-│   ├── store-assets.md         # CDO → CGO 핸드오프
+│   ├── store-assets-package.md  # CDO → CGO 핸드오프
 │   ├── launch-brief.md         # CTO → CGO 핸드오프
-│   └── growth-insights.md      # CGO → CBO 피드백
+│   └── growth-insights.md      # CGO → CEO 피드백
 └── logs/
     └── decisions.md            # 모든 기술/사업 결정 기록
 ```
@@ -63,7 +63,7 @@ context_injection:
     optional: [".agent-state/outputs/product-brief.md"]
     
   Acquisition_Strategist:
-    must_read: [".agent-state/outputs/launch-brief.md", ".agent-state/outputs/store-assets.md"]
+    must_read: [".agent-state/outputs/launch-brief.md", ".agent-state/outputs/store-assets-package.md"]
     optional: [".agent-state/outputs/product-brief.md"]
 ```
 

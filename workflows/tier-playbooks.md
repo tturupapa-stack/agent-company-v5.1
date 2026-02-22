@@ -54,7 +54,7 @@ Product Brief = 1페이지, 나머지 = 구두/인라인
 
 ## Tier 3: Startup MVP (2개월)
 
-### Active Agents: 전체 32개
+### Active Agents: 전체 27개
 
 ### 실행 흐름
 1. [Week 1-2] CBO: 전체 파이프라인

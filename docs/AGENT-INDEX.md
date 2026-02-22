@@ -356,7 +356,7 @@ CEO (Orchestrator)
 │   └── handoff/
 │       ├── product-brief-template.md    # CBO → CTO
 │       ├── launch-brief-template.md     # CTO → CGO
-│       ├── growth-insights-template.md  # CGO → CBO
+│       ├── growth-insights-template.md  # CGO → CEO
 │       └── lite-templates.md            # Tier 1-2용 간소화
 │
 └── context/                             # 공유 컨텍스트

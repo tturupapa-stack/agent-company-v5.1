@@ -345,14 +345,14 @@ CGO
 
 ---
 
-### 3. CGO → CBO: Growth Insights Report
+### 3. CGO → CEO: Growth Insights Report
 
 | Item | Description |
 |------|-------------|
 | **Document** | Growth Insights Report |
 | **Template** | `/templates/handoff/growth-insights-template.md` |
 | **Owner** | Growth Strategy Writer (CGO) |
-| **Receiver** | CBO / CEO |
+| **Receiver** | CEO |
 | **Trigger** | Quarterly review or pivot consideration |
 
 **Key Contents**:
