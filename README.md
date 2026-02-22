@@ -1,6 +1,6 @@
 # Agent Company v5.1
 
-> **OpenClaw-compatible state machine** — 4개 Division, 27개 에이전트, 6개 Quality Gate, 3개 병렬 그룹
+> **compatible state machine** — 4개 Division, 27개 에이전트, 6개 Quality Gate, 3개 병렬 그룹
 
 솔로 파운더가 아이디어 검증부터 런칭·그로스까지 전 과정을 에이전트 파이프라인으로 실행하는 시스템.
 
