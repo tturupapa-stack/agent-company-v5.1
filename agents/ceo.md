@@ -44,6 +44,7 @@ decisions:
     mcp_fallback_note: |
       CDO 에이전트 스킵 시 MCP 폴백 확인:
       - figma-mcp 미연결 → design-delivery.md 텍스트 기반 진행
+      - stitch-mcp 미연결 → 텍스트 기반 디자인 명세로 진행
       - image-gen-server 미연결 → Lucide/Heroicons 아이콘 라이브러리 대체
       - Frontend Engineer가 자체 mini design brief 생성 가능
       스킵하더라도 Frontend가 design_context.on_missing=self_generate로 자체 보완 가능
