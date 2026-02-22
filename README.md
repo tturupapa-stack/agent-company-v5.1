@@ -142,7 +142,7 @@ CDO + CTO Frontend에서 외부 디자인 도구와 연동.
 │   ├── feedback-loops.md                #   피드백 루프 + 롤백 조건
 │   └── cost-time-estimates.md           #   비용/시간 추정표
 │
-├── skills/                              # Claude Code 스킬 (12개)
+├── skills/                              # Claude Code 스킬 (10개)
 │   ├── business-workflow/               #   CBO 리서치 워크플로우
 │   ├── prd-workflow-v2/                 #   PRD 생성 + 채점
 │   ├── supervisor-report-v2/            #   개발 오케스트레이션
