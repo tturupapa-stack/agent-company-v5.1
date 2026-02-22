@@ -1,0 +1,467 @@
+# State Mutations — 에이전트 전환마다 project.json 변경 규칙
+# OpenClaw는 각 에이전트 시작/완료 시 이 규칙을 실행한다.
+
+version: "5.1"
+schema: "state-mutations"
+
+# Operations:
+#   set: 필드 값 설정
+#   append: 배열에 추가
+#   increment: 숫자 +1
+#   check: 조건부 액션
+
+# ============================================================
+# CBO Phase
+# ============================================================
+
+pain_point_hunter:
+  on_start:
+    set:
+      current_phase: "business"
+      current_agent: "pain_point_hunter"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "competitor_analyst"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "pain_point_hunter"
+          output: "pain-points.md"
+
+competitor_analyst:
+  on_start:
+    set:
+      current_agent: "competitor_analyst"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "bm_designer"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "competitor_analyst"
+          output: "competitor-analysis.md"
+
+bm_designer:
+  on_start:
+    set:
+      current_agent: "bm_designer"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "business_planner"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "bm_designer"
+          output: "business-model.md"
+
+business_planner:
+  on_start:
+    set:
+      current_agent: "business_planner"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "gtm_strategist"
+      updated_at: "{now}"
+
+gtm_strategist:
+  on_start:
+    set:
+      current_agent: "gtm_strategist"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "gate_1_product_brief"
+      updated_at: "{now}"
+
+# ============================================================
+# Gate 1
+# ============================================================
+
+gate_1_product_brief:
+  on_pass:
+    set:
+      current_phase: "development"
+      current_agent: "prd_architect"
+      updated_at: "{now}"
+      handoffs.product_brief.status: "delivered"
+      handoffs.product_brief.date: "{now}"
+    append:
+      completed_phases: "business"
+      decisions_log:
+        - date: "{now}"
+          agent: "gate_1"
+          decision: "Product Brief 통과"
+
+  on_fail:
+    set:
+      current_agent: "gtm_strategist"
+      updated_at: "{now}"
+    increment:
+      iteration_count.product_brief_revision: 1
+    check:
+      - if: "iteration_count.product_brief_revision > 2"
+        then:
+          set:
+            current_agent: "ceo_decision"
+          append:
+            blockers:
+              - type: "quality_gate_fail"
+                gate: "gate_1"
+                retry_count: 3
+
+# ============================================================
+# CTO Phase
+# ============================================================
+
+prd_architect:
+  on_start:
+    set:
+      current_phase: "development"
+      current_agent: "prd_architect"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "scope_guard"
+      updated_at: "{now}"
+
+scope_guard:
+  on_start:
+    set:
+      current_agent: "scope_guard"
+      updated_at: "{now}"
+
+  on_pass:
+    set:
+      current_agent: "architect"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "scope_guard"
+          decision: "Scope 통과"
+
+  on_fail:
+    set:
+      current_agent: "prd_architect"
+      updated_at: "{now}"
+    increment:
+      iteration_count.prd_scope_revision: 1
+
+architect:
+  on_start:
+    set:
+      current_agent: "architect"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "parallel_dev"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "architect"
+          output: "architecture.md"
+
+parallel_dev:
+  on_start:
+    set:
+      current_agent: "frontend_engineer+backend_engineer"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "code_reviewer"
+      updated_at: "{now}"
+
+code_reviewer:
+  on_approve:
+    set:
+      current_agent: "devops"
+      updated_at: "{now}"
+
+  on_request_changes:
+    set:
+      current_agent: "parallel_dev"
+      updated_at: "{now}"
+    increment:
+      iteration_count.code_review_revision: 1
+
+devops:
+  on_complete:
+    set:
+      current_agent: "gate_3_design_upgrade_brief"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "devops"
+          decision: "프로토타입 배포 완료"
+
+# ============================================================
+# Gate 3 + CDO Phase
+# ============================================================
+
+gate_3_design_upgrade_brief:
+  on_pass:
+    set:
+      current_phase: "design"
+      current_agent: "ui_designer"
+      updated_at: "{now}"
+      handoffs.design_upgrade_brief.status: "delivered"
+      handoffs.design_upgrade_brief.date: "{now}"
+    append:
+      completed_phases: "development"
+
+  on_skip:
+    set:
+      current_phase: "growth"
+      current_agent: "gate_5_launch_brief"
+      updated_at: "{now}"
+    append:
+      completed_phases: "development"
+      decisions_log:
+        - date: "{now}"
+          decision: "디자인 스킵 — 프로토타입으로 런칭"
+
+ui_designer:
+  on_start:
+    set:
+      current_phase: "design"
+      current_agent: "ui_designer"
+      updated_at: "{now}"
+  on_complete:
+    set:
+      current_agent: "visual_director"
+      updated_at: "{now}"
+
+visual_director:
+  on_complete:
+    set:
+      current_agent: "image_generator"
+      updated_at: "{now}"
+
+image_generator:
+  on_complete:
+    set:
+      current_agent: "screenshot_designer"
+      updated_at: "{now}"
+
+screenshot_designer:
+  on_complete:
+    set:
+      current_agent: "aso_optimizer"
+      updated_at: "{now}"
+
+aso_optimizer:
+  on_complete:
+    set:
+      current_agent: "design_to_code_bridge"
+      updated_at: "{now}"
+
+design_to_code_bridge:
+  on_complete:
+    set:
+      current_agent: "gate_4_design_delivery"
+      updated_at: "{now}"
+      handoffs.design_delivery.status: "delivered"
+      handoffs.design_delivery.date: "{now}"
+      handoffs.store_assets_package.status: "delivered"
+      handoffs.store_assets_package.date: "{now}"
+
+# ============================================================
+# Gate 4 + User Validation
+# ============================================================
+
+gate_4_design_delivery:
+  on_pass_tier_3_plus:
+    set:
+      current_agent: "user_validation_gate"
+      updated_at: "{now}"
+    append:
+      completed_phases: "design"
+
+  on_pass_tier_2:
+    set:
+      current_phase: "growth"
+      current_agent: "gate_5_launch_brief"
+      updated_at: "{now}"
+    append:
+      completed_phases: "design"
+
+  on_fail:
+    set:
+      current_agent: "ui_designer"
+      updated_at: "{now}"
+    increment:
+      iteration_count.cdo_cto_design_review: 1
+
+user_validation_gate:
+  on_pass:
+    set:
+      current_agent: "gate_5_launch_brief"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "User Validation 통과"
+
+  on_minor_fail:
+    set:
+      current_agent: "ui_designer"
+      updated_at: "{now}"
+    increment:
+      iteration_count.user_validation_retry: 1
+
+  on_major_fail:
+    set:
+      current_phase: "business"
+      current_agent: "pain_point_hunter"
+      updated_at: "{now}"
+    archive:
+      action: "copy outputs/ → archive/v{iteration_count.cbo_rollback}/"
+      then_apply: "rollback_rules.rollback_to_cbo"
+    increment:
+      "iteration_count.cbo_rollback": 1
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "User Validation 실패 — CBO 롤백"
+          reason: "핵심 가정 재검증 필요"
+          archived_to: "archive/v{iteration_count.cbo_rollback}/"
+
+# ============================================================
+# Gate 5 + CGO Phase
+# ============================================================
+
+gate_5_launch_brief:
+  on_pass:
+    set:
+      current_phase: "growth"
+      current_agent: "acquisition_strategist"
+      updated_at: "{now}"
+      handoffs.launch_brief.status: "delivered"
+      handoffs.launch_brief.date: "{now}"
+
+acquisition_strategist:
+  on_start:
+    set:
+      current_phase: "growth"
+      current_agent: "acquisition_strategist"
+      updated_at: "{now}"
+  on_complete:
+    set:
+      current_agent: "copy_strategist"
+      updated_at: "{now}"
+
+copy_strategist:
+  on_complete:
+    set:
+      current_agent: "parallel_growth"
+      updated_at: "{now}"
+
+parallel_growth:
+  on_start:
+    set:
+      current_agent: "ads_operator+content_creator"
+      updated_at: "{now}"
+  on_complete:
+    set:
+      current_agent: "onboarding_designer"
+      updated_at: "{now}"
+
+onboarding_designer:
+  on_complete:
+    set:
+      current_agent: "retention_manager"
+      updated_at: "{now}"
+
+retention_manager:
+  on_complete:
+    set:
+      current_agent: "revenue_optimizer"
+      updated_at: "{now}"
+
+revenue_optimizer:
+  on_complete:
+    set:
+      current_agent: "growth_analyst"
+      updated_at: "{now}"
+
+growth_analyst:
+  on_complete:
+    set:
+      current_agent: "gate_6_growth_insights"
+      updated_at: "{now}"
+      handoffs.growth_insights.status: "delivered"
+      handoffs.growth_insights.date: "{now}"
+
+# ============================================================
+# Gate 6 + CEO Decision
+# ============================================================
+
+gate_6_growth_insights:
+  on_pass:
+    set:
+      current_agent: "ceo_decision"
+      updated_at: "{now}"
+    append:
+      completed_phases: "growth"
+
+ceo_decision:
+  on_continue:
+    set:
+      current_agent: "acquisition_strategist"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "CONTINUE — 스케일"
+
+  on_iterate:
+    set:
+      current_agent: "onboarding_designer"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "ITERATE — 핵심 플로우 개선"
+
+  on_pivot:
+    set:
+      current_phase: "business"
+      current_agent: "pain_point_hunter"
+      updated_at: "{now}"
+    archive:
+      action: "copy outputs/ → archive/v{iteration_count.cbo_rollback}/"
+      then_apply: "rollback_rules.rollback_to_cbo"
+    increment:
+      "iteration_count.cbo_rollback": 1
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "PIVOT — CBO 재검토"
+          archived_to: "archive/v{iteration_count.cbo_rollback}/"
+
+  on_kill:
+    set:
+      current_phase: "terminated"
+      current_agent: null
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          decision: "KILL — 프로젝트 종료"

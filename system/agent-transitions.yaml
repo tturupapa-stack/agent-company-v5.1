@@ -1,0 +1,1612 @@
+# Agent Transitions — OpenClaw State Machine
+# 모든 에이전트의 trigger → execute → next 전환을 정의
+# OpenClaw는 이 파일만 읽으면 전체 워크플로우를 실행할 수 있다.
+
+version: "5.1"
+schema: "agent-transitions"
+
+# ============================================================
+# DEFAULTS — 모든 에이전트에 적용 (개별 정의가 없으면)
+# ============================================================
+
+defaults:
+  on_max_retry_exceeded:
+    action: "escalate_to_ceo"
+    ceo_options:
+      - "proceed_anyway"      # 현재 산출물로 강제 진행
+      - "manual_fix"          # 사람이 수정 후 재개
+      - "skip_agent"          # 건너뛰기 (skippable인 경우만)
+      - "kill_project"        # 프로젝트 중단
+    state_update:
+      append:
+        blockers:
+          - agent: "{current_agent}"
+            type: "max_retry_exceeded"
+            retry_count: "{retry_count}"
+            date: "{now}"
+
+  skippable_agents:
+    # 이 에이전트들은 skip_agent 옵션 사용 가능
+    - "visual_director"
+    - "aso_optimizer"
+    - "design_to_code_bridge"
+    - "screenshot_designer"
+    - "retention_manager"
+    - "revenue_optimizer"
+    - "ads_operator"
+
+# ============================================================
+# ROLLBACK — 산출물 아카이브/정리 규칙
+# ============================================================
+
+rollback_rules:
+  archive_before_clear: true
+  archive_path: ".agent-state/archive/v{iteration_count}/"
+  
+  rollback_to_cbo:
+    description: "CBO Phase로 복귀 — 모든 후속 산출물 아카이브 후 정리"
+    archive_all: true  # outputs/ 전체 → archive/
+    clear:
+      - "prd.md"
+      - "scope-review.md"
+      - "architecture.md"
+      - "frontend-complete.md"
+      - "backend-complete.md"
+      - "code-review.md"
+      - "deployment-config.md"
+      - "design-upgrade-brief.md"
+      - "design-audit.md"
+      - "brand-identity.md"
+      - "generated-assets.md"
+      - "store-screenshots.md"
+      - "aso-recommendations.md"
+      - "design-delivery.md"
+      - "store-assets-package.md"
+      - "launch-brief.md"
+      - "acquisition-strategy.md"
+      - "copy-package.md"
+      - "campaign-setup.md"
+      - "campaign-live.md"
+      - "content-plan.md"
+      - "onboarding-design.md"
+      - "retention-strategy.md"
+      - "revenue-optimization.md"
+      - "growth-insights.md"
+      - "validation-results.md"
+    preserve:
+      - "pain-points.md"         # 참고용, 새 리서치가 덮어쓸 것
+      - "competitor-analysis.md"  # 참고용
+
+  rollback_to_cto:
+    description: "CTO Phase로 복귀 — CDO/CGO 산출물 정리"
+    clear:
+      - "design-upgrade-brief.md"
+      - "design-audit.md"
+      - "brand-identity.md"
+      - "generated-assets.md"
+      - "store-screenshots.md"
+      - "aso-recommendations.md"
+      - "design-delivery.md"
+      - "store-assets-package.md"
+      - "launch-brief.md"
+      - "acquisition-strategy.md"
+      - "copy-package.md"
+      - "campaign-setup.md"
+      - "content-plan.md"
+      - "onboarding-design.md"
+      - "retention-strategy.md"
+      - "revenue-optimization.md"
+      - "growth-insights.md"
+    preserve:
+      - "prd.md"
+      - "scope-review.md"
+      - "architecture.md"
+
+  rollback_to_cdo:
+    description: "CDO Phase로 복귀 — 디자인 산출물 재작성"
+    clear:
+      - "design-audit.md"
+      - "brand-identity.md"
+      - "generated-assets.md"
+      - "store-screenshots.md"
+      - "aso-recommendations.md"
+      - "design-delivery.md"
+    preserve:
+      - "design-upgrade-brief.md"  # 브리프는 유지
+
+  max_rollback_per_phase: 2
+  on_max_rollback_exceeded:
+    action: "force_kill_decision"
+    ceo_prompt: "이 Phase로 2회 이상 롤백했습니다. 프로젝트를 종료할까요?"
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+entry:
+  tier_1:
+    start_agent: "quick_builder"
+    note: "에이전트 구조 불필요, 단일 skill 실행"
+  tier_2_plus:
+    start_agent: "pain_point_hunter"
+
+# ============================================================
+# CBO PHASE — Business Discovery
+# ============================================================
+
+pain_point_hunter:
+  id: "pain_point_hunter"
+  division: "CBO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "state_match"
+    conditions:
+      - "project.current_phase IN ['init', 'business']"
+      - "project.tier >= 2"
+
+  input_files:
+    must_read: []
+    user_input_required:
+      - key: "domain"
+        prompt: "탐색할 도메인을 입력하세요 (예: '1인 가구 식사', '프리랜서 재무관리')"
+      - key: "hypothesis"
+        prompt: "기존 가설이 있으면 입력하세요 (없으면 빈칸)"
+        optional: true
+
+  prompt_file: "agents/business/business-agents.md"
+  prompt_section: "1. Pain Point Hunter"
+
+  output_file: ".agent-state/outputs/pain-points.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/pain-points.md"
+    - type: "content_has_section"
+      section: "findings"
+      min_items: 5
+    - type: "content_has_section"
+      section: "evidence"
+      min_sources: 3
+
+  on_complete:
+    next_agent: "competitor_analyst"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+    feedback: "최소 5개 페인 포인트와 3개 소스가 필요합니다. 부족한 부분을 보완해주세요."
+
+# ---
+
+competitor_analyst:
+  id: "competitor_analyst"
+  division: "CBO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/pain-points.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/pain-points.md"
+
+  prompt_file: "agents/business/business-agents.md"
+  prompt_section: "2. Competitor Analyst"
+
+  output_file: ".agent-state/outputs/competitor-analysis.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/competitor-analysis.md"
+    - type: "content_has_section"
+      section: "direct_competitors"
+      min_items: 3
+    - type: "content_has_section"
+      section: "gaps_and_opportunities"
+      min_items: 1
+
+  on_complete:
+    next_agent: "bm_designer"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+    feedback: "최소 3개 직접 경쟁사와 1개 이상의 갭 분석이 필요합니다."
+
+# ---
+
+bm_designer:
+  id: "bm_designer"
+  division: "CBO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/competitor-analysis.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/pain-points.md"
+      - ".agent-state/outputs/competitor-analysis.md"
+
+  prompt_file: "agents/business/business-agents.md"
+  prompt_section: "3. BM Designer"
+
+  output_file: ".agent-state/outputs/business-model.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/business-model.md"
+    - type: "content_has_section"
+      section: "unit_economics"
+    - type: "content_check"
+      rule: "ltv_cac_ratio >= 1.5"
+      on_violation: "flag_warning"  # 실패해도 진행은 하되 경고
+
+  on_complete:
+    next_agent: "business_planner"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+    feedback: "비즈니스 모델에 unit economics (CAC, LTV, LTV:CAC ratio)가 반드시 포함되어야 합니다."
+
+# ---
+
+business_planner:
+  id: "business_planner"
+  division: "CBO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/business-model.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/pain-points.md"
+      - ".agent-state/outputs/competitor-analysis.md"
+      - ".agent-state/outputs/business-model.md"
+
+  prompt_file: "agents/business/business-agents.md"
+  prompt_section: "4. Business Planner"
+
+  output_file: ".agent-state/outputs/business-plan.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/business-plan.md"
+    - type: "content_min_length"
+      min_chars: 2000
+
+  on_complete:
+    next_agent: "gtm_strategist"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+
+# ---
+
+gtm_strategist:
+  id: "gtm_strategist"
+  division: "CBO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/business-plan.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/business-plan.md"
+
+  prompt_file: "agents/business/business-agents.md"
+  prompt_section: "5. GTM Strategist"
+
+  output_file: ".agent-state/outputs/product-brief.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/product-brief.md"
+
+  on_complete:
+    next_agent: "gate_1_product_brief"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+
+# ============================================================
+# QUALITY GATE 1: Product Brief (CBO → CTO)
+# ============================================================
+
+gate_1_product_brief:
+  id: "gate_1_product_brief"
+  type: "quality_gate"
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/product-brief.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/product-brief.md"
+
+  validation_rules:
+    - field: "problem"
+      rule: "contains_evidence"
+      description: "유저 인용 또는 데이터 근거 포함"
+      required: true
+    - field: "target_user"
+      rule: "has_persona"
+      description: "구체적 페르소나 (연령, 직업, 행동 패턴)"
+      required: true
+    - field: "mvp_features"
+      rule: "count_between_1_and_3"
+      description: "각각 'why_essential' 포함"
+      required: true
+    - field: "success_metrics"
+      rule: "count_gte_2_and_measurable"
+      description: "측정 가능한 KPI 2개 이상"
+      required: true
+
+  on_pass:
+    next_agent: "prd_architect"
+
+  on_fail:
+    next_agent: "gtm_strategist"
+    max_retry: 2
+    retry_counter: "iteration_count.product_brief_revision"
+    feedback_template: "Product Brief에서 다음 항목이 부족합니다: {failed_rules}. 보완해주세요."
+    on_max_retry_exceeded:
+      action: "escalate"
+      decision: "ceo_kill_or_proceed"
+      prompt: "Product Brief가 2회 수정 후에도 품질 기준을 충족하지 못합니다. 현재 버전으로 진행할까요, 프로젝트를 중단할까요?"
+
+# ============================================================
+# CTO PHASE — Development
+# ============================================================
+
+prd_architect:
+  id: "prd_architect"
+  division: "CTO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "gate_passed"
+    gate: "gate_1_product_brief"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/product-brief.md"
+    optional:
+      - ".agent-state/outputs/competitor-analysis.md"
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "1. PRD Architect"
+
+  output_file: ".agent-state/outputs/prd.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/prd.md"
+    - type: "content_has_section"
+      section: "user_stories"
+      min_items: 3
+    - type: "content_has_section"
+      section: "api_endpoints"
+    - type: "content_has_section"
+      section: "db_schema"
+    - type: "content_has_section"
+      section: "screens"
+
+  on_complete:
+    next_agent: "scope_guard"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+    feedback: "PRD에 user_stories(3+), api_endpoints, db_schema, screens 섹션이 필요합니다."
+
+# ---
+
+scope_guard:
+  id: "scope_guard"
+  division: "CTO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/prd.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+    context:
+      - source: "project.tier"
+        inject_as: "tier_number"
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "2. Scope Guard"
+
+  output_file: ".agent-state/outputs/scope-review.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/scope-review.md"
+    - type: "content_has_field"
+      field: "status"
+      valid_values: ["pass", "fail"]
+
+  on_complete:
+    branch:
+      - condition: "scope_review.status == 'pass'"
+        next_agent: "architect"
+      - condition: "scope_review.status == 'fail'"
+        next_agent: "prd_architect"
+        action: "revise_prd_with_scope_feedback"
+        max_retry: 2
+        retry_counter: "iteration_count.prd_scope_revision"
+        feedback_source: ".agent-state/outputs/scope-review.md#violations"
+
+# ---
+
+architect:
+  id: "architect"
+  division: "CTO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_check"
+    conditions:
+      - file: ".agent-state/outputs/scope-review.md"
+        field: "status"
+        equals: "pass"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/scope-review.md"
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "3. Architect"
+
+  output_file: ".agent-state/outputs/architecture.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/architecture.md"
+    - type: "content_has_section"
+      section: "tech_stack"
+    - type: "content_has_section"
+      section: "project_structure"
+    - type: "content_has_section"
+      section: "key_decisions"
+
+  on_complete:
+    next_agent: "quick_design_brief"
+
+# ---
+
+# === LIGHTWEIGHT DESIGN BRIEF (All Tiers) ===
+
+quick_design_brief:
+  id: "quick_design_brief"
+  division: "CDO"
+  tier_min: 1  # 모든 Tier에서 실행
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/architecture.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/architecture.md"
+    optional:
+      - ".agent-state/outputs/product-brief.md"
+
+  prompt: |
+    앱의 PRD와 아키텍처를 분석하여 경량 디자인 브리프를 생성하세요.
+    다음을 포함해야 합니다:
+    - 앱 성격 및 카테고리
+    - 타겟 사용자 프로필
+    - 톤/무드 키워드 (3-5개)
+    - 컬러 방향 (Primary, 톤, 금지 색상)
+    - 아이콘 스타일 (라이브러리 + 스타일, 이모지 절대 금지)
+    - 타이포그래피 방향
+    5분 이내로 간결하게 작성하세요.
+
+  output_file: ".agent-state/outputs/design-delivery.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/design-delivery.md"
+    - type: "content_has_section"
+      section: "color"
+    - type: "content_has_section"
+      section: "icon"
+
+  on_complete:
+    next_agent: "parallel_dev"
+
+  on_fail:
+    action: "proceed_without"
+    next_agent: "parallel_dev"
+    note: "디자인 브리프 생성 실패 시에도 개발 진행 (frontend_engineer가 자체 브리프 생성)"
+
+# === PARALLEL GROUP: Frontend + Backend ===
+
+parallel_dev:
+  id: "parallel_dev"
+  type: "parallel_group"
+
+  trigger:
+    type: "any_of"
+    conditions:
+      - file_exists: ".agent-state/outputs/design-delivery.md"
+      - file_exists: ".agent-state/outputs/architecture.md"
+
+  agents:
+    - "frontend_engineer"
+    - "backend_engineer"
+
+  join_condition: "all_complete"
+  join_next: "code_reviewer"
+
+  timeout_hours: 48
+  on_timeout: "proceed_with_completed"
+
+# ---
+
+frontend_engineer:
+  id: "frontend_engineer"
+  division: "CTO"
+  tier_min: 1
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_dev"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/architecture.md"
+    conditional:
+      - path: ".agent-state/outputs/design-delivery.md"
+        on_missing: "self_generate"
+        self_generate_prompt: |
+          design-delivery.md가 없습니다. 개발 시작 전 자체 미니 디자인 브리프를 생성하세요:
+          1. PRD에서 앱 목적/타겟 파악
+          2. 적합한 컬러 팔레트 결정 (Tailwind 기본값 금지)
+          3. 아이콘 라이브러리 선택 (Lucide React 기본 권장, 이모지 절대 금지)
+          4. 타이포그래피 방향 결정
+          결과를 .agent-state/outputs/design-delivery.md에 저장 후 개발 진행.
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "4. Frontend Engineer"
+
+  design_rules:
+    - "이모지를 UI 아이콘으로 사용 금지 — Lucide React, Heroicons 등 사용"
+    - "Tailwind 기본 색상 직접 사용 금지 — 시맨틱 변수 사용"
+    - "Inter/Roboto 무조건 사용 금지 — 앱 성격에 맞는 폰트 선택 (Google Fonts)"
+    - "앱 목적에 맞는 톤/색상/레이아웃 설계 필수"
+    - "모든 요소에 동일 border-radius 금지 — 요소별 적절한 곡률 차등"
+    - "기본 그림자/그라데이션 없는 평면 디자인 금지 — 미묘한 depth와 입체감 적용"
+    - "design-delivery.md 참조 필수 (없으면 자체 생성)"
+
+  output_type: "codebase"
+  output_marker: ".agent-state/outputs/frontend-complete.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/frontend-complete.md"
+    - type: "command_success"
+      command: "npm run build"
+
+  on_complete:
+    signal: "parallel_dev.frontend_done"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 2
+    feedback: "빌드 에러를 수정해주세요."
+
+# ---
+
+backend_engineer:
+  id: "backend_engineer"
+  division: "CTO"
+  tier_min: 1
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_dev"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/architecture.md"
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "5. Backend Engineer"
+
+  output_type: "codebase"
+  output_marker: ".agent-state/outputs/backend-complete.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/backend-complete.md"
+    - type: "command_success"
+      command: "npm test"
+
+  on_complete:
+    signal: "parallel_dev.backend_done"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 2
+
+# ---
+
+code_reviewer:
+  id: "code_reviewer"
+  division: "CTO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_join"
+    group: "parallel_dev"
+
+  input_files:
+    must_read: []
+    codebase: true
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "6. Code Reviewer"
+
+  output_file: ".agent-state/outputs/code-review.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/code-review.md"
+    - type: "content_has_field"
+      field: "status"
+      valid_values: ["approve", "request_changes", "reject"]
+
+  on_complete:
+    branch:
+      - condition: "code_review.status == 'approve'"
+        next_agent: "devops"
+      - condition: "code_review.status == 'request_changes'"
+        next_agent: "parallel_dev"
+        action: "fix_critical_issues"
+        max_retry: 2
+        retry_counter: "iteration_count.code_review_revision"
+        feedback_source: ".agent-state/outputs/code-review.md#critical"
+      - condition: "code_review.status == 'reject'"
+        action: "escalate"
+        decision: "ceo_architect_review"
+
+# ---
+
+devops:
+  id: "devops"
+  division: "CTO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_check"
+    conditions:
+      - file: ".agent-state/outputs/code-review.md"
+        field: "status"
+        equals: "approve"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/architecture.md"
+    codebase: true
+
+  prompt_file: "agents/development/development-agents.md"
+  prompt_section: "7. DevOps Engineer"
+
+  output_file: ".agent-state/outputs/deployment-config.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/deployment-config.md"
+    - type: "command_success"
+      command: "curl -f {deploy_url}/health"
+      optional: true
+
+  on_complete:
+    next_agent: "gate_3_design_upgrade_brief"
+
+# ============================================================
+# QUALITY GATE 3: Design Upgrade Brief (CTO → CDO)
+# ============================================================
+
+gate_3_design_upgrade_brief:
+  id: "gate_3_design_upgrade_brief"
+  type: "quality_gate"
+  execution: "ai_with_human_approval"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/deployment-config.md"
+
+  auto_generate: true
+  generator_agent: "devops"
+  generator_action: "CTO가 Design Upgrade Brief를 자동 생성"
+  output_file: ".agent-state/outputs/design-upgrade-brief.md"
+
+  validation_rules:
+    - field: "prototype_access"
+      rule: "not_empty"
+      description: "프로토타입 접근 방법 (URL/스크린샷/Figma)"
+      required: true
+    - field: "brand_keywords"
+      rule: "count_between_3_and_5"
+      required: true
+    - field: "target_platform"
+      rule: "not_empty"
+      required: true
+    - field: "request_scope"
+      rule: "not_empty"
+      required: true
+    - field: "mcp_status"
+      rule: "not_empty"
+      description: "MCP 연결 상태 (figma-mcp / sketch-mcp / image-gen-server / 없음)"
+      required: true
+
+  human_approval:
+    prompt: "디자인 업그레이드 브리프를 확인하셨나요? 브랜드 키워드와 요청 범위가 맞나요?"
+    options: ["approve", "edit", "skip_design"]
+
+  on_pass:
+    next_agent: "ui_designer"
+
+  on_skip:
+    next_agent: "gate_5_launch_brief"
+    note: "디자인 스킵 시 프로토타입 그대로 런칭"
+
+# ============================================================
+# CDO PHASE — Design
+# ============================================================
+
+ui_designer:
+  id: "ui_designer"
+  division: "CDO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "gate_passed"
+    gate: "gate_3_design_upgrade_brief"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/design-upgrade-brief.md"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "1. UI Designer"
+
+  mcp_optional:
+    - name: "figma-mcp"
+      url: "https://mcp.figma.com/mcp"
+      usage: "프로토타입 프레임 읽기, 컴포넌트 구조/색상/타이포 자동 분석"
+      tools: ["get_design_context", "get_screenshot", "get_metadata"]
+      fallback: "코드베이스/스크린샷 기반 수동 감사"
+    - name: "sketch-mcp"
+      usage: "Sketch 문서 화면 캡처, Shared Styles 점검"
+      tools: ["get_document_info", "get_selected_layers", "export_selected_layer"]
+      fallback: "코드베이스 기반 수동 분석"
+
+  output_file: ".agent-state/outputs/design-audit.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/design-audit.md"
+    - type: "content_has_section"
+      section: "current_state_analysis"
+    - type: "content_has_section"
+      section: "improvement_plan"
+
+  on_complete:
+    next_agent: "parallel_design"  # visual_director + image_generator 병렬 실행
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+
+# === PARALLEL GROUP: Visual Director + Image Generator ===
+
+parallel_design:
+  id: "parallel_design"
+  type: "parallel_group"
+
+  trigger:
+    type: "agent_complete"
+    agent: "ui_designer"
+    required_files:
+      - ".agent-state/outputs/design-audit.md"
+      - ".agent-state/outputs/design-upgrade-brief.md"
+
+  agents:
+    - "visual_director"
+    - "image_generator"
+
+  join_condition: "all_complete"
+  join_next: "screenshot_designer"
+
+  timeout_hours: 24
+  on_timeout: "proceed_with_completed"
+
+# ---
+
+visual_director:
+  id: "visual_director"
+  division: "CDO"
+  tier_min: 3
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_design"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/design-audit.md"
+      - ".agent-state/outputs/design-upgrade-brief.md"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "2. Visual Director"
+
+  mcp_optional:
+    - name: "figma-mcp"
+      url: "https://mcp.figma.com/mcp"
+      usage: "색상 팔레트를 Figma Variables로 생성, 타이포 스케일을 Text Styles로 등록"
+      tools: ["get_variable_defs", "get_design_context"]
+      fallback: "brand-identity.md에 YAML로 정의"
+    - name: "sketch-mcp"
+      usage: "Sketch Shared Styles로 색상/타이포 적용"
+      fallback: "수동 토큰 정의"
+
+  output_file: ".agent-state/outputs/brand-identity.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/brand-identity.md"
+    - type: "content_has_section"
+      section: "color_palette"
+    - type: "content_has_section"
+      section: "typography"
+
+  on_complete:
+    signal: "parallel_design.visual_director_done"
+
+  on_fail:
+    action: "retry_with_feedback"
+    max_retry: 1
+
+# ---
+
+image_generator:
+  id: "image_generator"
+  division: "CDO"
+  tier_min: 1
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_design"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/design-upgrade-brief.md"
+    optional:
+      - ".agent-state/outputs/brand-identity.md"
+
+  mcp_required:
+    - name: "image-gen-server"
+      env: "REPLICATE_API_TOKEN"
+      fallback: "무료 아이콘 라이브러리 (Lucide, Heroicons) 사용"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "3. Image Generator"
+
+  output_file: ".agent-state/outputs/generated-assets.md"
+  output_assets: "/assets/brand/"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/generated-assets.md"
+    - type: "asset_exists"
+      path: "/assets/brand/app-icon-1024.png"
+      optional: true
+
+  on_complete:
+    signal: "parallel_design.image_generator_done"
+
+# ---
+
+screenshot_designer:
+  id: "screenshot_designer"
+  division: "CDO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_join"
+    group: "parallel_design"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/generated-assets.md"
+      - ".agent-state/outputs/prd.md"
+    optional:
+      - ".agent-state/outputs/brand-identity.md"
+
+  mcp_optional:
+    - name: "figma-mcp"
+      url: "https://mcp.figma.com/mcp"
+      usage: "스크린샷 레이아웃을 Figma 프레임으로 직접 생성, 브랜드 Variables 참조"
+      tools: ["get_design_context", "get_screenshot"]
+      fallback: "텍스트 기반 스크린샷 계획 문서"
+    - name: "store-screenshot-mcp"
+      repo: "k984530/store-screenshot-mcp"
+      fallback: "Figma/Canva로 수동 제작 (human checkpoint)"
+    - name: "sketch-mcp"
+      usage: "Sketch 아트보드에서 스크린샷 레이아웃 생성"
+      fallback: "수동 제작"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "4. Screenshot Designer"
+
+  output_file: ".agent-state/outputs/store-screenshots.md"
+  output_assets: "/assets/store/"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/store-screenshots.md"
+
+  on_complete:
+    next_agent: "aso_optimizer"
+
+# ---
+
+aso_optimizer:
+  id: "aso_optimizer"
+  division: "CDO"
+  tier_min: 3
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/store-screenshots.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/store-screenshots.md"
+      - ".agent-state/outputs/product-brief.md"
+    optional:
+      - ".agent-state/outputs/competitor-analysis.md"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "5. ASO Visual Optimizer"
+
+  output_file: ".agent-state/outputs/aso-recommendations.md"
+
+  on_complete:
+    next_agent: "design_to_code_bridge"
+
+# ---
+
+design_to_code_bridge:
+  id: "design_to_code_bridge"
+  division: "CDO"
+  tier_min: 3
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/aso-recommendations.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/design-audit.md"
+      - ".agent-state/outputs/brand-identity.md"
+      - ".agent-state/outputs/architecture.md"
+
+  mcp_optional:
+    - name: "figma-mcp"
+      url: "https://mcp.figma.com/mcp"
+      usage: "Figma Variables → CSS 변수, Components → 컴포넌트 명세, Styles → 토큰 자동 변환"
+      tools: ["get_variable_defs", "get_design_context", "get_code_connect_map"]
+      fallback: "brand-identity.md 기반 수동 토큰 추출"
+    - name: "sketch-mcp"
+      usage: "Sketch Shared Styles → 디자인 토큰, Symbols → 컴포넌트 목록"
+      fallback: "수동 토큰 추출"
+
+  prompt_file: "agents/design/design-agents.md"
+  prompt_section: "6. Design-to-Code Bridge"
+
+  output_file: ".agent-state/outputs/design-delivery.md"
+  output_secondary: ".agent-state/outputs/store-assets-package.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/design-delivery.md"
+    - type: "content_has_section"
+      section: "design_tokens"
+    - type: "content_has_section"
+      section: "component_list"
+
+  on_complete:
+    next_agent: "gate_4_design_delivery"
+
+# ============================================================
+# QUALITY GATE 4: Design Delivery (CDO → CTO)
+# ============================================================
+
+gate_4_design_delivery:
+  id: "gate_4_design_delivery"
+  type: "quality_gate"
+  execution: "ai_with_human_approval"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/design-delivery.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/design-delivery.md"
+
+  validation_rules:
+    - field: "design_tokens"
+      rule: "not_empty"
+      required: true
+    - field: "component_list"
+      rule: "not_empty"
+      required: true
+    - field: "asset_files"
+      rule: "not_empty"
+      required: true
+    - field: "token_source"
+      rule: "not_empty"
+      description: "토큰 소스 (Figma Variables / Sketch Styles / 수동 정의)"
+      required: true
+
+  human_approval:
+    prompt: "디자인 결과물을 확인하셨나요? 디자인 토큰과 컴포넌트 목록이 개발에 충분한가요?"
+    options: ["approve", "request_revision"]
+
+  on_pass:
+    branch:
+      - condition: "project.tier >= 3"
+        next_agent: "user_validation_gate"
+      - condition: "project.tier < 3"
+        next_agent: "gate_5_launch_brief"
+
+  on_fail:
+    next_agent: "ui_designer"
+    max_retry: 3
+    retry_counter: "iteration_count.cdo_cto_design_review"
+    on_max_retry_exceeded:
+      action: "proceed_with_current"
+      note: "현재 디자인으로 확정"
+
+# ============================================================
+# USER VALIDATION GATE (Tier 3+ only, Human Required)
+# ============================================================
+
+user_validation_gate:
+  id: "user_validation_gate"
+  type: "human_checkpoint"
+  execution: "human_required"
+
+  trigger:
+    type: "gate_passed"
+    gate: "gate_4_design_delivery"
+    additional: "project.tier >= 3"
+
+  human_task:
+    description: "5명 대상 사용성 테스트 실행"
+    expected_duration: "3-5일"
+    instructions: "workflows/user-validation-gate.md 프로토콜을 따라 테스트를 진행하세요."
+
+  input_template: |
+    아래 양식으로 결과를 입력해주세요:
+    ---
+    task_completion_rate: X/15  (5명 × 3 시나리오)
+    core_value_understanding: X/5
+    nps_average: X (1-10)
+    top_pain_points:
+      - "불편한 점 1"
+      - "불편한 점 2"
+    top_positives:
+      - "좋은 점 1"
+    willingness_to_pay: X/5
+
+  resume_trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/validation-results.md"
+
+  output_file: ".agent-state/outputs/validation-results.md"
+
+  pass_criteria:
+    task_completion_rate: ">= 0.7"   # 11/15 이상
+    core_value_understanding: ">= 0.8"  # 4/5 이상
+    nps_average: ">= 7"
+
+  on_pass:
+    next_agent: "gate_5_launch_brief"
+
+  on_fail:
+    branch:
+      - condition: "task_completion_rate < 0.5 OR core_value_understanding < 0.5"
+        action: "major_fail"
+        next_agent: "pain_point_hunter"
+        note: "핵심 가정 재검증 필요 — CBO Phase로 롤백"
+      - condition: "else"
+        action: "minor_fail"
+        next_agent: "ui_designer"
+        max_retry: 2
+        retry_counter: "iteration_count.user_validation_retry"
+
+# ============================================================
+# QUALITY GATE 5: Launch Brief (CTO → CGO)
+# ============================================================
+
+gate_5_launch_brief:
+  id: "gate_5_launch_brief"
+  type: "quality_gate"
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "any_of"
+    conditions:
+      - gate_passed: "user_validation_gate"
+      - gate_passed: "gate_4_design_delivery"  # Tier 2: validation 스킵
+
+  auto_generate: true
+  generator_action: "이전 산출물 기반으로 Launch Brief 자동 생성"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/product-brief.md"
+      - ".agent-state/outputs/deployment-config.md"
+      - ".agent-state/outputs/prd.md"
+    optional:
+      - ".agent-state/outputs/store-assets-package.md"
+
+  output_file: ".agent-state/outputs/launch-brief.md"
+
+  validation_rules:
+    - field: "product_url"
+      rule: "not_empty"
+      required: true
+    - field: "core_features"
+      rule: "not_empty"
+      required: true
+    - field: "tracking_setup"
+      rule: "not_empty"
+      required: true
+    - field: "target_audience"
+      rule: "not_empty"
+      required: true
+
+  on_pass:
+    next_agent: "acquisition_strategist"
+
+# ============================================================
+# CGO PHASE — Growth
+# ============================================================
+
+acquisition_strategist:
+  id: "acquisition_strategist"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "gate_passed"
+    gate: "gate_5_launch_brief"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/launch-brief.md"
+    optional:
+      - ".agent-state/outputs/store-assets-package.md"
+      - ".agent-state/outputs/product-brief.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "1. Acquisition Strategist"
+
+  output_file: ".agent-state/outputs/acquisition-strategy.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/acquisition-strategy.md"
+    - type: "content_has_section"
+      section: "channel_evaluation"
+    - type: "content_has_section"
+      section: "priority_order"
+    - type: "content_has_section"
+      section: "week_1_actions"
+
+  on_complete:
+    next_agent: "copy_strategist"
+
+# ---
+
+copy_strategist:
+  id: "copy_strategist"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/acquisition-strategy.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/acquisition-strategy.md"
+      - ".agent-state/outputs/product-brief.md"
+    optional:
+      - ".agent-state/outputs/brand-identity.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "7. Copy Strategist"
+
+  output_file: ".agent-state/outputs/copy-package.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/copy-package.md"
+    - type: "content_has_section"
+      section: "ad_copy"
+    - type: "content_has_section"
+      section: "landing_page"
+
+  on_complete:
+    next_agent: "parallel_growth"
+
+# ---
+
+# === PARALLEL GROUP: Ads + Content ===
+
+parallel_growth:
+  id: "parallel_growth"
+  type: "parallel_group"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/copy-package.md"
+
+  agents:
+    - "ads_operator"
+    - "content_creator"
+
+  join_condition: "content_creator_complete"
+  join_note: "ads_operator는 human_execute이므로 비동기. content만 기다림."
+  join_next: "onboarding_designer"
+
+# ---
+
+ads_operator:
+  id: "ads_operator"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_draft_human_execute"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_growth"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/acquisition-strategy.md"
+      - ".agent-state/outputs/copy-package.md"
+    optional:
+      - ".agent-state/outputs/generated-assets.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "2. Ads Operator"
+
+  output_file: ".agent-state/outputs/campaign-setup.md"
+  
+  ai_output: "캠페인 설정 문서 (타겟팅, 크리에이티브, 비딩)"
+  human_task: "Meta/Google Ads에서 실제 캠페인 생성 및 실행"
+  
+  resume_trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/campaign-live.md"
+  
+  resume_input_template: |
+    캠페인 라이브 후 아래 정보를 입력하세요:
+    ---
+    campaign_id: ""
+    platform: ""
+    daily_budget: ""
+    start_date: ""
+
+  on_complete:
+    signal: "parallel_growth.ads_done"
+
+# ---
+
+content_creator:
+  id: "content_creator"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_member"
+    group: "parallel_growth"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/acquisition-strategy.md"
+      - ".agent-state/outputs/copy-package.md"
+      - ".agent-state/outputs/product-brief.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "3. Content Creator"
+
+  output_file: ".agent-state/outputs/content-plan.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/content-plan.md"
+    - type: "content_has_section"
+      section: "content_calendar"
+
+  on_complete:
+    signal: "parallel_growth.content_done"
+
+# ---
+
+onboarding_designer:
+  id: "onboarding_designer"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "parallel_join"
+    group: "parallel_growth"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/prd.md"
+      - ".agent-state/outputs/launch-brief.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "4. Onboarding Designer"
+
+  output_file: ".agent-state/outputs/onboarding-design.md"
+
+  on_complete:
+    next_agent: "retention_manager"
+
+# ---
+
+retention_manager:
+  id: "retention_manager"
+  division: "CGO"
+  tier_min: 3
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/onboarding-design.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/onboarding-design.md"
+      - ".agent-state/outputs/launch-brief.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "5. Retention Manager"
+
+  output_file: ".agent-state/outputs/retention-strategy.md"
+
+  on_complete:
+    next_agent: "revenue_optimizer"
+
+# ---
+
+revenue_optimizer:
+  id: "revenue_optimizer"
+  division: "CGO"
+  tier_min: 3
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/retention-strategy.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/business-model.md"
+      - ".agent-state/outputs/retention-strategy.md"
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "6. Revenue Optimizer"
+
+  output_file: ".agent-state/outputs/revenue-optimization.md"
+
+  on_complete:
+    next_agent: "growth_analyst"
+
+# ---
+
+growth_analyst:
+  id: "growth_analyst"
+  division: "CGO"
+  tier_min: 2
+  execution: "ai_with_human_data"
+
+  trigger:
+    type: "any_of"
+    conditions:
+      - file_exists: ".agent-state/outputs/revenue-optimization.md"  # Tier 3+
+      - file_exists: ".agent-state/outputs/onboarding-design.md"     # Tier 2
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/acquisition-strategy.md"
+      - ".agent-state/outputs/launch-brief.md"
+    optional:
+      - ".agent-state/outputs/retention-strategy.md"
+      - ".agent-state/outputs/revenue-optimization.md"
+      - ".agent-state/outputs/campaign-live.md"
+    user_data:
+      prompt: "현재까지의 핵심 메트릭을 입력하세요 (DAU, Activation Rate, D7 Retention, ARPU 등). 아직 데이터가 없으면 'no_data'를 입력하세요."
+      optional: true
+
+  prompt_file: "agents/growth/growth-agents.md"
+  prompt_section: "8. Growth Analyst"
+
+  output_file: ".agent-state/outputs/growth-insights.md"
+
+  completion_check:
+    - type: "file_exists"
+      path: ".agent-state/outputs/growth-insights.md"
+    - type: "content_has_section"
+      section: "go_no_go_assessment"
+
+  on_complete:
+    next_agent: "gate_6_growth_insights"
+
+# ============================================================
+# QUALITY GATE 6: Growth Insights (CGO → CEO Decision)
+# ============================================================
+
+gate_6_growth_insights:
+  id: "gate_6_growth_insights"
+  type: "quality_gate"
+  execution: "ai_with_human_approval"
+
+  trigger:
+    type: "file_exists"
+    path: ".agent-state/outputs/growth-insights.md"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/growth-insights.md"
+
+  validation_rules:
+    - field: "key_metrics"
+      rule: "not_empty"
+      required: true
+    - field: "go_no_go_assessment"
+      rule: "not_empty"
+      required: true
+    - field: "recommendation"
+      rule: "in_list"
+      valid_values: ["continue", "iterate", "pivot", "kill"]
+      required: true
+
+  human_approval:
+    prompt: "Growth Insights 리포트를 확인하셨나요? 추천 전략에 동의하시나요?"
+    options: ["agree", "override_continue", "override_pivot", "override_kill"]
+
+  on_pass:
+    next_agent: "ceo_decision"
+
+# ============================================================
+# CEO DECISION (Phase 4)
+# ============================================================
+
+ceo_decision:
+  id: "ceo_decision"
+  type: "decision_node"
+  execution: "ai_with_human_approval"
+
+  trigger:
+    type: "gate_passed"
+    gate: "gate_6_growth_insights"
+
+  input_files:
+    must_read:
+      - ".agent-state/outputs/growth-insights.md"
+      - ".agent-state/project.json"
+
+  decision_matrix:
+    continue:
+      condition: "recommendation == 'continue'"
+      action: "현재 전략 유지 + 스케일"
+      next: "acquisition_strategist"
+      note: "새로운 2주 스프린트 시작"
+
+    iterate:
+      condition: "recommendation == 'iterate'"
+      action: "CGO + CTO 개선 사이클"
+      next: "onboarding_designer"
+      note: "핵심 플로우 개선 후 재측정"
+
+    pivot:
+      condition: "recommendation == 'pivot'"
+      action: "CBO 재검토"
+      next: "pain_point_hunter"
+      note: "시장 가정 재검증"
+
+    kill:
+      condition: "recommendation == 'kill'"
+      action: "프로젝트 종료"
+      next: null
+      final_output: ".agent-state/outputs/project-postmortem.md"
+
+  human_override: true
+  human_prompt: "CEO 결정을 확인하세요: continue / iterate / pivot / kill"
+
+# ============================================================
+# TIER 1: Quick Builder (별도 경로)
+# ============================================================
+
+quick_builder:
+  id: "quick_builder"
+  division: "none"
+  tier_min: 1
+  tier_max: 1
+  execution: "ai_autonomous"
+
+  trigger:
+    type: "state_match"
+    conditions:
+      - "project.tier == 1"
+
+  input_files:
+    user_input_required:
+      - key: "idea"
+        prompt: "아이디어를 2-3문장으로 설명하세요"
+
+  prompt_file: "skills/quick-builder.md"
+
+  output_type: "codebase"
+  output_file: ".agent-state/outputs/quick-build-complete.md"
+
+  on_complete:
+    next_agent: "image_generator"
+    note: "기본 아이콘만 생성 후 종료"

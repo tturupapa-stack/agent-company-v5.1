@@ -1,0 +1,19 @@
+{
+  "name": "test-team",
+  "description": "Agent Teams 기능 테스트",
+  "createdAt": 1771719850044,
+  "leadAgentId": "team-lead@test-team",
+  "leadSessionId": "421a6911-fe95-429c-bf38-9baa3d12bbbd",
+  "members": [
+    {
+      "agentId": "team-lead@test-team",
+      "name": "team-lead",
+      "agentType": "team-lead",
+      "model": "claude-opus-4-6",
+      "joinedAt": 1771719850044,
+      "tmuxPaneId": "",
+      "cwd": "/Users/larkkim/Desktop/Project Screen A",
+      "subscriptions": []
+    }
+  ]
+}

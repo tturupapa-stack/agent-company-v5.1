@@ -1,0 +1,217 @@
+# Parallel Groups — 병렬 실행 시작/합류 조건
+
+version: "5.1"
+schema: "parallel-groups"
+
+# ============================================================
+# GROUP 1: Frontend + Backend Development
+# ============================================================
+
+parallel_dev:
+  id: "parallel_dev"
+  phase: "development"
+
+  trigger:
+    type: "any_of"
+    conditions:
+      - agent_complete: "quick_design_brief"
+        required_files:
+          - ".agent-state/outputs/architecture.md"
+          - ".agent-state/outputs/design-delivery.md"
+      - agent_complete: "architect"
+        required_files:
+          - ".agent-state/outputs/architecture.md"
+        note: "design-delivery.md 없이도 시작 가능 (frontend가 자체 생성)"
+
+  members:
+    frontend_engineer:
+      priority: 1
+      can_start_without_other: true
+      uses_mock_data: true  # backend 미완 시 mock API 사용
+      design_context:
+        required_files:
+          - ".agent-state/outputs/design-delivery.md"
+        on_missing: "self_generate"  # 없으면 자체 미니 디자인 브리프 생성
+        design_rules:
+          - "이모지를 UI 아이콘으로 사용 금지 — Lucide React, Heroicons 등 사용"
+          - "Tailwind 기본 색상 직접 사용 금지 — 시맨틱 변수 사용"
+          - "Inter/Roboto 무조건 사용 금지 — 앱 성격에 맞는 폰트 선택 (Google Fonts)"
+          - "앱 목적에 맞는 톤/색상/레이아웃 설계 필수"
+          - "모든 요소에 동일 border-radius 금지 — 요소별 적절한 곡률 차등"
+          - "기본 그림자/그라데이션 없는 평면 디자인 금지 — 미묘한 depth와 입체감 적용"
+          - "design-delivery.md 참조 필수 (없으면 자체 생성)"
+      mcp_optional:
+        - name: "figma-mcp"
+          url: "https://mcp.figma.com/mcp"
+          usage: "디자인 스펙 참조, 컴포넌트 구조/색상/타이포 확인"
+          tools: ["get_design_context", "get_screenshot", "get_variable_defs"]
+          fallback: "design-delivery.md 텍스트 기반 참조"
+    backend_engineer:
+      priority: 1
+      can_start_without_other: true
+
+  join:
+    condition: "all_complete"
+    description: "둘 다 끝나야 Code Review 진행"
+
+    completion_signals:
+      frontend_engineer:
+        marker: ".agent-state/outputs/frontend-complete.md"
+        verification: "npm run build succeeds"
+      backend_engineer:
+        marker: ".agent-state/outputs/backend-complete.md"
+        verification: "npm test succeeds"
+
+    on_join:
+      next_agent: "code_reviewer"
+      integration_task: |
+        Frontend와 Backend가 모두 완료되었습니다.
+        Code Reviewer를 실행하기 전에:
+        1. mock API를 실제 API로 교체
+        2. 전체 빌드 확인
+        3. 기본 E2E 플로우 확인
+        4. design-delivery.md 대비 UI 일관성 확인
+
+  error_handling:
+    one_fails:
+      action: "retry_failed_member"
+      max_retry: 2
+      other_member: "continue"  # 성공한 쪽은 계속
+
+    both_fail:
+      action: "escalate"
+      next: "architect"
+      reason: "아키텍처 재검토 필요"
+
+    timeout:
+      hours: 48
+      action: "proceed_with_completed"
+      note: "시간 초과 시 완료된 것만으로 진행"
+
+# ============================================================
+# GROUP 2: Visual Director + Image Generator (Design Phase)
+# ============================================================
+
+parallel_design:
+  id: "parallel_design"
+  phase: "design"
+
+  trigger:
+    type: "agent_complete"
+    agent: "ui_designer"
+    required_files:
+      - ".agent-state/outputs/design-audit.md"
+      - ".agent-state/outputs/design-upgrade-brief.md"
+
+  members:
+    visual_director:
+      priority: 1
+      can_start_without_other: true
+      tier_min: 3  # Tier 3+ only (Tier 2는 간소화)
+      mcp_optional:
+        - name: "figma-mcp"
+          url: "https://mcp.figma.com/mcp"
+          usage: "색상 팔레트를 Figma Variables로 생성, 타이포를 Text Styles로 등록"
+          tools: ["get_variable_defs", "get_design_context"]
+          fallback: "brand-identity.md에 YAML로 정의"
+        - name: "sketch-mcp"
+          usage: "Sketch Shared Styles로 색상/타이포 적용"
+          fallback: "수동 토큰 정의"
+    image_generator:
+      priority: 1
+      can_start_without_other: true
+      tier_min: 1  # 모든 Tier (앱 아이콘은 항상 필요)
+      mcp_required:
+        - name: "image-gen-server"
+          package: "@gongrzhe/image-gen-server"
+          env: "REPLICATE_API_TOKEN"
+          fallback: "Lucide/Heroicons 아이콘 라이브러리 사용"
+
+  join:
+    condition: "all_complete"
+    description: "Brand Director + Asset Creator 모두 완료 후 Screenshot Designer 진행"
+
+    completion_signals:
+      visual_director:
+        marker: ".agent-state/outputs/brand-identity.md"
+        verification_sections: ["color_palette", "typography"]
+      image_generator:
+        marker: ".agent-state/outputs/generated-assets.md"
+        verification_optional: "/assets/brand/app-icon-1024.png"
+
+    on_join:
+      next_agent: "screenshot_designer"
+      merge_task: |
+        Visual Director와 Image Generator가 모두 완료되었습니다.
+        Screenshot Designer를 실행하기 전에:
+        1. brand-identity.md의 색상/타이포가 에셋에 반영되었는지 확인
+        2. 생성된 에셋(/assets/brand/)이 브랜드 방향과 일치하는지 확인
+        3. Figma MCP 연결 시 Variables/Styles 동기화 확인
+
+  error_handling:
+    visual_director_fails:
+      action: "skip"  # skippable agent
+      note: "image_generator 결과만으로 진행, brand-identity는 design-upgrade-brief 기반"
+
+    image_generator_fails:
+      action: "retry_with_fallback"
+      max_retry: 1
+      fallback: "Lucide/Heroicons 아이콘 라이브러리로 대체"
+
+    both_fail:
+      action: "escalate"
+      next: "ui_designer"
+      reason: "디자인 감사 기준 재검토 필요"
+
+    timeout:
+      hours: 24
+      action: "proceed_with_completed"
+      note: "시간 초과 시 완료된 것만으로 진행"
+
+# ============================================================
+# GROUP 3: Ads + Content (Growth Phase)
+# ============================================================
+
+parallel_growth:
+  id: "parallel_growth"
+  phase: "growth"
+  
+  trigger:
+    type: "agent_complete"
+    agent: "copy_strategist"
+    required_files:
+      - ".agent-state/outputs/copy-package.md"
+
+  members:
+    ads_operator:
+      priority: 1
+      execution: "ai_draft_human_execute"  # 비동기
+      blocking: false  # 이 에이전트 완료를 기다리지 않음
+    content_creator:
+      priority: 1
+      execution: "ai_autonomous"
+      blocking: true  # 이 에이전트 완료를 기다림
+
+  join:
+    condition: "blocking_members_complete"
+    description: "content_creator만 완료되면 합류. ads_operator는 비동기."
+    
+    completion_signals:
+      content_creator:
+        marker: ".agent-state/outputs/content-plan.md"
+      ads_operator:
+        marker: ".agent-state/outputs/campaign-live.md"
+        note: "사람이 집행한 후 나중에 입력됨"
+
+    on_join:
+      next_agent: "onboarding_designer"
+      note: "ads_operator 결과는 growth_analyst 때 수집"
+
+  error_handling:
+    content_creator_fails:
+      action: "retry"
+      max_retry: 1
+      
+    ads_operator_skipped:
+      action: "continue"
+      note: "Tier 1-2에서는 유료 광고 스킵 가능"

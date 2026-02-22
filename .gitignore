@@ -1,0 +1,36 @@
+# Cache & temporary
+cache/
+paste-cache/
+stats-cache.json
+statsig/
+telemetry/
+shell-snapshots/
+debug/
+
+# Session & history
+history.jsonl
+file-history/
+context/
+plans/
+tasks/
+todos/
+exports/
+downloads/
+
+# IDE & local settings
+ide/
+settings.local.json
+session-env/
+plugins/
+
+# OS
+.DS_Store
+
+# Backup (already versioned)
+backup-pre-v5.1/
+
+# MCP servers (separate repos)
+mcp/
+
+# Project session data
+projects/

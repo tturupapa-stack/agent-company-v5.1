@@ -1,0 +1,410 @@
+# Agent I/O Map — 모든 에이전트의 입출력 파일 경로
+# 하나의 파일에서 전체 데이터 흐름을 파악할 수 있다.
+
+version: "5.1"
+schema: "agent-io-map"
+
+# 모든 산출물의 저장 위치
+output_base: ".agent-state/outputs/"
+asset_base: "/assets/"
+
+# ============================================================
+# CBO Division (5 agents)
+# ============================================================
+
+pain_point_hunter:
+  reads: []
+  writes:
+    - path: "pain-points.md"
+      type: "analysis"
+      description: "페인 포인트 리서치 결과"
+
+competitor_analyst:
+  reads:
+    - path: "pain-points.md"
+      required: true
+  writes:
+    - path: "competitor-analysis.md"
+      type: "analysis"
+      description: "경쟁사 분석 + 갭"
+
+bm_designer:
+  reads:
+    - path: "pain-points.md"
+      required: true
+    - path: "competitor-analysis.md"
+      required: true
+  writes:
+    - path: "business-model.md"
+      type: "strategy"
+      description: "비즈니스 모델 캔버스 + Unit Economics"
+
+business_planner:
+  reads:
+    - path: "pain-points.md"
+      required: true
+    - path: "competitor-analysis.md"
+      required: true
+    - path: "business-model.md"
+      required: true
+  writes:
+    - path: "business-plan.md"
+      type: "document"
+      description: "통합 사업 계획서"
+
+gtm_strategist:
+  reads:
+    - path: "business-plan.md"
+      required: true
+  writes:
+    - path: "product-brief.md"
+      type: "handoff"
+      description: "CBO→CTO 핸드오프 문서"
+      gate: "gate_1_product_brief"
+
+# ============================================================
+# CTO Division (7 agents)
+# ============================================================
+
+prd_architect:
+  reads:
+    - path: "product-brief.md"
+      required: true
+    - path: "competitor-analysis.md"
+      required: false
+  writes:
+    - path: "prd.md"
+      type: "spec"
+      description: "상세 PRD (User Stories, API, DB, Screens)"
+
+scope_guard:
+  reads:
+    - path: "prd.md"
+      required: true
+  writes:
+    - path: "scope-review.md"
+      type: "validation"
+      description: "MVP 범위 검증 결과 (pass/fail + violations)"
+
+architect:
+  reads:
+    - path: "prd.md"
+      required: true
+    - path: "scope-review.md"
+      required: true
+  writes:
+    - path: "architecture.md"
+      type: "spec"
+      description: "기술 스택, 프로젝트 구조, 핵심 결정"
+
+frontend_engineer:
+  reads:
+    - path: "prd.md"
+      required: true
+    - path: "architecture.md"
+      required: true
+    - path: "design-delivery.md"
+      required: false
+  writes:
+    - path: "frontend-complete.md"
+      type: "marker"
+      description: "프론트엔드 구현 완료 마커 (빌드 성공 확인)"
+  codebase_output: true
+  note: "실제 산출물은 코드베이스. marker 파일은 완료 신호용."
+
+backend_engineer:
+  reads:
+    - path: "prd.md"
+      required: true
+    - path: "architecture.md"
+      required: true
+  writes:
+    - path: "backend-complete.md"
+      type: "marker"
+      description: "백엔드 구현 완료 마커 (테스트 통과 확인)"
+  codebase_output: true
+
+code_reviewer:
+  reads:
+    - path: "prd.md"
+      required: false
+  writes:
+    - path: "code-review.md"
+      type: "validation"
+      description: "코드 리뷰 결과 (approve/request_changes/reject)"
+  codebase_input: true
+  note: "코드베이스를 직접 읽음"
+
+devops:
+  reads:
+    - path: "architecture.md"
+      required: true
+  writes:
+    - path: "deployment-config.md"
+      type: "config"
+      description: "배포 설정, CI/CD, 모니터링"
+  codebase_input: true
+
+# ============================================================
+# CDO Division (6 agents)
+# ============================================================
+
+ui_designer:
+  reads:
+    - path: "prd.md"
+      required: true
+    - path: "design-upgrade-brief.md"
+      required: true
+  writes:
+    - path: "design-audit.md"
+      type: "analysis"
+      description: "현재 디자인 분석 + 개선 계획"
+
+visual_director:
+  reads:
+    - path: "design-audit.md"
+      required: true
+    - path: "design-upgrade-brief.md"
+      required: true
+  writes:
+    - path: "brand-identity.md"
+      type: "spec"
+      description: "브랜드 아이덴티티 (컬러, 타이포, 스페이싱, 무드)"
+
+image_generator:
+  reads:
+    - path: "design-upgrade-brief.md"
+      required: true
+    - path: "brand-identity.md"
+      required: false
+  writes:
+    - path: "generated-assets.md"
+      type: "asset_manifest"
+      description: "생성된 이미지 에셋 목록"
+  asset_output:
+    - "/assets/brand/app-icon-1024.png"
+    - "/assets/brand/app-icon-512.png"
+    - "/assets/brand/app-icon-adaptive-fg.png"
+
+screenshot_designer:
+  reads:
+    - path: "generated-assets.md"
+      required: true
+    - path: "prd.md"
+      required: true
+    - path: "brand-identity.md"
+      required: false
+  writes:
+    - path: "store-screenshots.md"
+      type: "asset_manifest"
+      description: "스토어 스크린샷 목록"
+  asset_output:
+    - "/assets/store/ios-6.9-*.png"
+    - "/assets/store/android-*.png"
+    - "/assets/store/feature-graphic-1024x500.png"
+
+aso_optimizer:
+  reads:
+    - path: "store-screenshots.md"
+      required: true
+    - path: "product-brief.md"
+      required: true
+    - path: "competitor-analysis.md"
+      required: false
+  writes:
+    - path: "aso-recommendations.md"
+      type: "strategy"
+      description: "ASO 최적화 권장사항"
+
+design_to_code_bridge:
+  reads:
+    - path: "design-audit.md"
+      required: true
+    - path: "brand-identity.md"
+      required: true
+    - path: "architecture.md"
+      required: true
+  writes:
+    - path: "design-delivery.md"
+      type: "handoff"
+      description: "CDO→CTO 핸드오프 (디자인 토큰, 컴포넌트, 에셋)"
+      gate: "gate_4_design_delivery"
+    - path: "store-assets-package.md"
+      type: "handoff"
+      description: "CDO→CGO 핸드오프 (아이콘, 스크린샷, 피처그래픽)"
+
+# ============================================================
+# CGO Division (8 agents)
+# ============================================================
+
+acquisition_strategist:
+  reads:
+    - path: "launch-brief.md"
+      required: true
+    - path: "store-assets-package.md"
+      required: false
+    - path: "product-brief.md"
+      required: false
+  writes:
+    - path: "acquisition-strategy.md"
+      type: "strategy"
+      description: "채널 평가 + 예산 배분 + 우선순위"
+
+copy_strategist:
+  reads:
+    - path: "acquisition-strategy.md"
+      required: true
+    - path: "product-brief.md"
+      required: true
+    - path: "brand-identity.md"
+      required: false
+  writes:
+    - path: "copy-package.md"
+      type: "creative"
+      description: "광고/이메일/LP/마이크로카피 전체 카피"
+
+ads_operator:
+  reads:
+    - path: "acquisition-strategy.md"
+      required: true
+    - path: "copy-package.md"
+      required: true
+    - path: "generated-assets.md"
+      required: false
+  writes:
+    - path: "campaign-setup.md"
+      type: "config"
+      description: "AI가 작성한 캠페인 설정"
+    - path: "campaign-live.md"
+      type: "human_input"
+      description: "사람이 실제 집행 후 입력하는 캠페인 실황"
+
+content_creator:
+  reads:
+    - path: "acquisition-strategy.md"
+      required: true
+    - path: "copy-package.md"
+      required: true
+    - path: "product-brief.md"
+      required: true
+  writes:
+    - path: "content-plan.md"
+      type: "strategy"
+      description: "SEO + 콘텐츠 캘린더 + 소셜 전략"
+
+onboarding_designer:
+  reads:
+    - path: "prd.md"
+      required: true
+    - path: "launch-brief.md"
+      required: true
+  writes:
+    - path: "onboarding-design.md"
+      type: "spec"
+      description: "온보딩 플로우 + Aha moment 설계"
+
+retention_manager:
+  reads:
+    - path: "onboarding-design.md"
+      required: true
+    - path: "launch-brief.md"
+      required: true
+  writes:
+    - path: "retention-strategy.md"
+      type: "strategy"
+      description: "코호트 분석 + 이탈 방지 + 인게이지먼트 플랜"
+
+revenue_optimizer:
+  reads:
+    - path: "business-model.md"
+      required: true
+    - path: "retention-strategy.md"
+      required: true
+  writes:
+    - path: "revenue-optimization.md"
+      type: "strategy"
+      description: "가격 최적화 + Paywall + 업셀"
+
+growth_analyst:
+  reads:
+    - path: "acquisition-strategy.md"
+      required: true
+    - path: "launch-brief.md"
+      required: true
+    - path: "retention-strategy.md"
+      required: false
+    - path: "revenue-optimization.md"
+      required: false
+    - path: "campaign-live.md"
+      required: false
+  writes:
+    - path: "growth-insights.md"
+      type: "handoff"
+      description: "CGO→CBO 피드백 (메트릭 + Go/No-Go + 전략 제안)"
+      gate: "gate_6_growth_insights"
+
+# ============================================================
+# GATES (auto-generated outputs)
+# ============================================================
+
+gate_outputs:
+  gate_3_design_upgrade_brief:
+    auto_generates: "design-upgrade-brief.md"
+    from_agents: ["devops"]
+  gate_5_launch_brief:
+    auto_generates: "launch-brief.md"
+    from_agents: ["devops", "prd_architect"]
+
+# ============================================================
+# HUMAN INPUT FILES
+# ============================================================
+
+human_inputs:
+  validation-results.md:
+    source: "user_validation_gate"
+    description: "사용성 테스트 결과 (사람이 직접 작성)"
+  campaign-live.md:
+    source: "ads_operator"
+    description: "광고 캠페인 실황 (사람이 직접 입력)"
+
+# ============================================================
+# COMPLETE FILE LIST (29 output files)
+# ============================================================
+
+all_output_files:
+  # CBO (5)
+  - "pain-points.md"
+  - "competitor-analysis.md"
+  - "business-model.md"
+  - "business-plan.md"
+  - "product-brief.md"
+  # CTO (6)
+  - "prd.md"
+  - "scope-review.md"
+  - "architecture.md"
+  - "frontend-complete.md"
+  - "backend-complete.md"
+  - "code-review.md"
+  - "deployment-config.md"
+  # CDO (7)
+  - "design-upgrade-brief.md"
+  - "design-audit.md"
+  - "brand-identity.md"
+  - "generated-assets.md"
+  - "store-screenshots.md"
+  - "aso-recommendations.md"
+  - "design-delivery.md"
+  - "store-assets-package.md"
+  # CGO (8)
+  - "launch-brief.md"
+  - "acquisition-strategy.md"
+  - "copy-package.md"
+  - "campaign-setup.md"
+  - "campaign-live.md"
+  - "content-plan.md"
+  - "onboarding-design.md"
+  - "retention-strategy.md"
+  - "revenue-optimization.md"
+  - "growth-insights.md"
+  # Human (1)
+  - "validation-results.md"

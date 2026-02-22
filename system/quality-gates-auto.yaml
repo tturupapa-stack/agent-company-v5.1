@@ -1,0 +1,462 @@
+# Quality Gates — Machine-Readable Validation Rules
+# OpenClaw는 각 Gate에서 이 규칙으로 자동 검증한다.
+# 사람이 읽는 버전: quality-gates.md (유지)
+# 기계가 읽는 버전: 이 파일
+
+version: "5.1"
+schema: "quality-gates-auto"
+
+# ============================================================
+# VALIDATION METHOD
+# ============================================================
+# 
+# 각 규칙에 validation_method를 지정할 수 있다:
+#   "pattern" — 패턴 매칭 (기본값, 빠름, 정확도 낮음)
+#   "llm_semantic" — Claude API 호출로 의미 검증 (느림, 정확도 높음)
+#   "hybrid" — pattern으로 1차 필터 → 통과하면 llm으로 2차 검증
+#
+# 비용 고려:
+#   pattern: $0 (로컬 처리)
+#   llm_semantic: ~$0.01/검증 (Claude Haiku)
+#   hybrid: pattern 통과 시에만 LLM 호출 → 비용 절감
+#
+# 기본 전략:
+#   - 구조 검증 (섹션 존재, 필드 개수): pattern
+#   - 내용 품질 검증 (증거 충분성, 논리 일관성): llm_semantic
+#   - 복합 검증 (구조 + 품질): hybrid
+
+validation_defaults:
+  method: "hybrid"
+  llm_model: "claude-haiku"  # 비용 최적화
+  llm_timeout_seconds: 30
+  on_llm_unavailable: "fallback_to_pattern"  # LLM 호출 실패 시 패턴만으로
+
+# ============================================================
+# GATE 1: Product Brief (CBO → CTO)
+# ============================================================
+
+gate_1_product_brief:
+  input_file: ".agent-state/outputs/product-brief.md"
+  
+  required_sections:
+    - section: "problem_statement"
+      rules:
+        - type: "min_length"
+          value: 50
+          validation_method: "pattern"
+        - type: "contains_evidence"
+          validation_method: "hybrid"
+          pattern_check:
+            patterns: ["Reddit", "리뷰", "유저", "인터뷰", "서베이", "데이터", "%", "명"]
+            min_matches: 1
+          llm_check:
+            prompt: |
+              이 Problem Statement를 평가하세요:
+              ---
+              {section_content}
+              ---
+              질문: 이 텍스트에 실제 유저 데이터, 인용, 또는 구체적 증거가 포함되어 있나요?
+              "우리는 ~라고 생각한다" 같은 가설만 있으면 FAIL.
+              실제 유저의 말, 설문 결과, 리뷰 데이터 등이 있으면 PASS.
+              응답: PASS 또는 FAIL (한 단어만, 그 다음 줄에 이유 1문장)
+            pass_condition: "response starts with 'PASS'"
+          error: "Problem에 유저 인용 또는 데이터 근거가 없습니다"
+    
+    - section: "target_user"
+      rules:
+        - type: "has_fields"
+          fields: ["persona_name", "demographics", "behavior", "goal"]
+          error: "Target User에 페르소나 상세 (이름, 연령/직업, 행동패턴, 목표)가 필요합니다"
+    
+    - section: "mvp_features"
+      rules:
+        - type: "list_count"
+          max: 3
+          error: "MVP Features는 3개 이내여야 합니다"
+        - type: "each_item_has"
+          field: "why_essential"
+          error: "각 MVP Feature에 '없으면 앱이 아닌 이유'가 필요합니다"
+    
+    - section: "success_metrics"
+      rules:
+        - type: "list_count"
+          min: 2
+          error: "측정 가능한 KPI가 최소 2개 필요합니다"
+        - type: "each_item_has"
+          fields: ["metric", "target"]
+          error: "각 메트릭에 구체적 목표값이 필요합니다"
+
+  minimum_total_length: 500  # 최소 500자
+  
+  on_pass:
+    next_agent: "prd_architect"
+    state_update:
+      handoffs.product_brief.status: "delivered"
+      handoffs.product_brief.score: "{validation_score}"
+  
+  on_fail:
+    next_agent: "gtm_strategist"
+    max_retry: 2
+    feedback_template: |
+      Product Brief가 품질 기준을 충족하지 못했습니다.
+      부족한 항목:
+      {failed_items}
+      각 항목을 보완하여 다시 작성해주세요.
+
+# ============================================================
+# GATE 2: PRD (CTO 내부 — Scope Guard)
+# ============================================================
+
+gate_2_prd_scope:
+  input_file: ".agent-state/outputs/prd.md"
+  
+  required_sections:
+    - section: "user_stories"
+      rules:
+        - type: "list_count"
+          min: 3
+          error: "User Story가 최소 3개 필요합니다"
+        - type: "each_item_has"
+          fields: ["as_a", "i_want", "so_that", "acceptance_criteria"]
+          error: "각 User Story에 As a/I want/So that + 수용 조건이 필요합니다"
+    
+    - section: "api_endpoints"
+      rules:
+        - type: "each_item_has"
+          fields: ["method", "path", "request_body", "response"]
+          error: "각 API에 method, path, request, response가 필요합니다"
+    
+    - section: "db_schema"
+      rules:
+        - type: "has_fields"
+          fields: ["tables"]
+          error: "DB 스키마에 테이블 정의가 필요합니다"
+    
+    - section: "screens"
+      rules:
+        - type: "each_item_has"
+          fields: ["name", "purpose", "states"]
+          error: "각 화면에 이름, 목적, 상태(empty/loading/loaded/error)가 필요합니다"
+
+  tier_limits:
+    1: { max_p0_features: 1, max_apis: 3, max_screens: 2 }
+    2: { max_p0_features: 3, max_apis: 5, max_screens: 4 }
+    3: { max_p0_features: 5, max_apis: 10, max_screens: 8 }
+    4: { max_p0_features: 10, max_apis: 20, max_screens: 15 }
+
+  scope_check:
+    - type: "count_by_priority"
+      section: "user_stories"
+      priority_field: "priority"
+      priority_value: "P0"
+      max: "tier_limits[project.tier].max_p0_features"
+      error: "P0 기능 수가 Tier {tier} 한도({limit}개)를 초과합니다"
+    - type: "count"
+      section: "api_endpoints"
+      max: "tier_limits[project.tier].max_apis"
+      error: "API 수가 Tier {tier} 한도({limit}개)를 초과합니다"
+    - type: "count"
+      section: "screens"
+      max: "tier_limits[project.tier].max_screens"
+      error: "화면 수가 Tier {tier} 한도({limit}개)를 초과합니다"
+
+  on_pass:
+    output: ".agent-state/outputs/scope-review.md"
+    next_agent: "architect"
+  
+  on_fail:
+    next_agent: "prd_architect"
+    max_retry: 2
+    feedback_template: |
+      Scope Guard 검증 실패:
+      {scope_violations}
+      초과 항목을 P1(v1.1)이나 P2(v2.0)로 변경해주세요.
+
+# ============================================================
+# GATE 3: Design Upgrade Brief (CTO → CDO)
+# ============================================================
+
+gate_3_design_upgrade_brief:
+  input_file: ".agent-state/outputs/design-upgrade-brief.md"
+  
+  required_sections:
+    - section: "prototype_access"
+      rules:
+        - type: "not_empty"
+          error: "프로토타입 접근 방법(URL/스크린샷/Figma)이 필요합니다"
+    
+    - section: "brand_keywords"
+      rules:
+        - type: "list_count"
+          min: 3
+          max: 5
+          error: "브랜드 키워드 3-5개가 필요합니다"
+    
+    - section: "target_platform"
+      rules:
+        - type: "contains_any"
+          values: ["iOS", "Android", "Web"]
+          error: "타겟 플랫폼(iOS/Android/Web)을 명시해주세요"
+    
+    - section: "request_scope"
+      rules:
+        - type: "not_empty"
+          error: "요청 범위(전체 리디자인/핵심 화면/아이콘 등)를 명시해주세요"
+
+  on_pass:
+    next_agent: "ui_designer"
+  on_fail:
+    next_agent: "devops"  # CTO가 보완
+    max_retry: 1
+
+# ============================================================
+# GATE 4: Design Delivery (CDO → CTO)
+# ============================================================
+
+gate_4_design_delivery:
+  input_file: ".agent-state/outputs/design-delivery.md"
+  
+  required_sections:
+    - section: "design_tokens"
+      rules:
+        - type: "has_fields"
+          fields: ["colors", "typography", "spacing"]
+          error: "디자인 토큰(컬러, 타이포, 스페이싱)이 필요합니다"
+    
+    - section: "component_list"
+      rules:
+        - type: "list_count"
+          min: 3
+          error: "컴포넌트 목록이 최소 3개 필요합니다"
+        - type: "each_item_has"
+          fields: ["states"]
+          error: "각 컴포넌트에 상태별 시안(default, hover, disabled, error)이 필요합니다"
+    
+    - section: "asset_paths"
+      rules:
+        - type: "not_empty"
+          error: "에셋 파일 경로가 필요합니다"
+
+  on_pass:
+    next_agent: "frontend_engineer"  # 디자인 적용
+    note: "기존 프로토타입에 디자인 적용"
+  on_fail:
+    next_agent: "design_to_code_bridge"
+    max_retry: 2
+
+# ============================================================
+# GATE 5: Launch Brief (CTO → CGO)
+# ============================================================
+
+gate_5_launch_brief:
+  input_file: ".agent-state/outputs/launch-brief.md"
+  
+  required_sections:
+    - section: "product_url"
+      rules:
+        - type: "not_empty"
+          error: "제품 접근 URL 또는 스토어 링크가 필요합니다"
+    
+    - section: "core_features"
+      rules:
+        - type: "list_count"
+          min: 1
+          error: "핵심 기능 설명이 최소 1개 필요합니다"
+    
+    - section: "tracking"
+      rules:
+        - type: "contains_any"
+          values: ["GA4", "Mixpanel", "Amplitude", "Firebase"]
+          error: "트래킹 구현(GA4/Mixpanel/Firebase 중 최소 1개)이 필요합니다"
+    
+    - section: "target_audience"
+      rules:
+        - type: "not_empty"
+          error: "타겟 오디언스 정의가 필요합니다"
+
+  on_pass:
+    next_agent: "acquisition_strategist"
+  on_fail:
+    next_agent: "devops"  # CTO가 보완
+    max_retry: 1
+
+# ============================================================
+# GATE 6: Growth Insights (CGO → CBO)
+# ============================================================
+
+gate_6_growth_insights:
+  input_file: ".agent-state/outputs/growth-insights.md"
+  
+  required_sections:
+    - section: "key_metrics"
+      rules:
+        - type: "has_fields"
+          fields: ["dau", "activation_rate", "d7_retention", "arpu", "ltv_cac_ratio"]
+          error: "핵심 메트릭 5개(DAU, Activation, D7 Retention, ARPU, LTV:CAC)가 필요합니다"
+    
+    - section: "channel_performance"
+      rules:
+        - type: "list_count"
+          min: 1
+          error: "채널별 성과 비교가 최소 1개 필요합니다"
+    
+    - section: "insights"
+      rules:
+        - type: "list_count"
+          min: 3
+          error: "핵심 인사이트가 최소 3개 필요합니다"
+        - type: "each_item_has"
+          fields: ["data", "action"]
+          error: "각 인사이트에 데이터 근거와 다음 행동이 필요합니다"
+    
+    - section: "go_no_go_assessment"
+      rules:
+        - type: "has_fields"
+          fields: ["recommendation"]
+          error: "Go/No-Go 판정(continue/iterate/pivot/kill)이 필요합니다"
+    
+    - section: "next_quarter_strategy"
+      rules:
+        - type: "not_empty"
+          error: "다음 분기 전략이 필요합니다"
+
+  data_freshness:
+    min_days: 14
+    error: "최소 2주 이상의 데이터가 필요합니다"
+
+  on_pass:
+    next_agent: "ceo_decision"
+  on_fail:
+    next_agent: "growth_analyst"
+    max_retry: 1
+
+# ============================================================
+# USER VALIDATION GATE (특수)
+# ============================================================
+
+gate_user_validation:
+  input_file: ".agent-state/outputs/validation-results.md"
+  
+  required_fields:
+    - field: "task_completion_rate"
+      format: "X/15"
+      pass_threshold: 11  # >= 11/15 = 73%
+      error: "Task completion rate가 70% 미만입니다"
+    
+    - field: "core_value_understanding"
+      format: "X/5"
+      pass_threshold: 4  # >= 4/5 = 80%
+      error: "Core value 이해율이 80% 미만입니다"
+    
+    - field: "nps_average"
+      format: "number"
+      pass_threshold: 7
+      error: "NPS 평균이 7 미만입니다"
+
+  on_all_pass:
+    next_agent: "acquisition_strategist"
+    note: "Launch Brief 생성 → CGO 시작"
+  
+  on_minor_fail:
+    condition: "1-2개 항목만 미달"
+    next_agent: "ui_designer"  # CDO + CTO 수정
+    max_retry: 2
+    feedback: "사용자 테스트에서 다음 지표가 미달했습니다: {failed_metrics}"
+  
+  on_major_fail:
+    condition: "모든 항목 미달"
+    next_agent: "pain_point_hunter"  # Phase 1 재시작
+    feedback: "핵심 가정이 틀린 것으로 보입니다. 시장 검증을 다시 진행합니다."
+
+# ============================================================
+# LLM SEMANTIC VALIDATION PROMPTS (hybrid mode의 llm_check용)
+# ============================================================
+# 
+# 패턴 매칭으로는 잡을 수 없는 품질 문제를 Claude가 판단한다.
+# 각 Gate에서 pattern_check 통과 후 llm_check를 추가 실행.
+
+llm_validation_prompts:
+
+  gate_1_holistic:
+    description: "Product Brief 전체 일관성 검증"
+    trigger: "모든 pattern rule 통과 후"
+    prompt: |
+      이 Product Brief를 전체적으로 평가하세요:
+      ---
+      {full_document}
+      ---
+      
+      다음 5가지 기준으로 PASS/FAIL 판정:
+      1. 문제(Problem)와 해결책(Solution)이 논리적으로 연결되는가?
+      2. 타겟 유저의 페인 포인트가 해결책에 반영되어 있는가?
+      3. MVP 기능이 '있으면 좋은 것'이 아니라 '없으면 앱이 아닌 것'인가?
+      4. 성공 지표(KPI)가 비즈니스 모델과 연결되는가?
+      5. 전체적으로 "이걸 만들면 사람들이 쓸 것인가?"에 대한 설득력이 있는가?
+      
+      응답 형식:
+      OVERALL: PASS 또는 FAIL
+      SCORE: X/5
+      WEAK_POINTS: [부족한 항목 번호]
+      FEEDBACK: 1-2문장 개선 제안
+
+  gate_2_scope:
+    description: "Scope Guard의 기능 분류 검증"
+    trigger: "PRD의 기능이 tier 한도를 초과할 때"
+    prompt: |
+      이 PRD의 기능 목록을 평가하세요:
+      ---
+      {prd_features}
+      ---
+      Tier: {tier_number}
+      Tier {tier_number}의 P0 기능 한도: {p0_limit}개
+      
+      각 기능에 대해:
+      - P0 (없으면 앱이 아님) / P1 (있으면 좋음) / P2 (나중에) 분류
+      - 분류 이유 1문장
+      
+      P0로 분류된 기능이 한도를 초과하면:
+      - 어떤 기능을 P1으로 내려야 하는지 제안
+      
+      응답 형식:
+      FEATURE_CLASSIFICATION:
+        - name: "기능명"
+          priority: P0/P1/P2
+          reason: "이유"
+      P0_COUNT: X
+      WITHIN_LIMIT: PASS/FAIL
+      DEFERRAL_SUGGESTION: "내릴 기능명" (FAIL인 경우)
+
+  gate_4_design_quality:
+    description: "디자인 토큰 완성도 검증"
+    trigger: "design-delivery.md 생성 후"
+    prompt: |
+      이 디자인 토큰 세트를 평가하세요:
+      ---
+      {design_tokens}
+      ---
+      
+      체크 항목:
+      1. 색상: primary, secondary, background, text, error, success 전부 있는가?
+      2. 타이포: h1-h3, body, caption, button 전부 있는가?
+      3. 스페이싱: 일관된 base unit (4px 또는 8px)을 따르는가?
+      4. 접근성: text color와 background의 대비가 충분해 보이는가?
+      5. TBD/TODO/placeholder가 남아있지 않은가?
+      
+      응답: PASS/FAIL + 부족한 항목
+
+  gate_6_metrics_validity:
+    description: "Growth Insights의 데이터 신뢰도 검증"
+    trigger: "growth-insights.md 생성 후"
+    prompt: |
+      이 Growth Report의 메트릭과 결론을 평가하세요:
+      ---
+      {growth_insights}
+      ---
+      
+      체크:
+      1. 메트릭과 결론이 일관되는가? (D7 5%인데 "continue" 추천이면 FAIL)
+      2. 데이터 기간이 충분한가? (최소 2주)
+      3. 채널별 비교가 의미 있는가?
+      4. Go/No-Go 추천의 근거가 명확한가?
+      
+      응답: PASS/FAIL + 불일치 항목

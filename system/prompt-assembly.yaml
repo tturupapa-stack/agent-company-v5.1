@@ -1,0 +1,467 @@
+# Prompt Assembly — 각 프롬프트의 변수(placeholder)와 값 출처
+# OpenClaw는 이 파일을 읽어서 프롬프트를 자동 조립한다.
+
+version: "5.1"
+schema: "prompt-assembly"
+
+# inject_method:
+#   "full_content" — 파일 전체를 삽입
+#   "section" — 파일의 특정 섹션만 추출하여 삽입
+#   "field" — YAML/JSON의 특정 필드 값만 삽입
+#   "user_input" — 사용자에게 직접 입력받음
+#   "project_state" — .agent-state/project.json에서 읽음
+
+# ============================================================
+# CBO
+# ============================================================
+
+pain_point_hunter:
+  variables:
+    domain:
+      source: "user_input"
+      prompt: "탐색할 도메인을 입력하세요 (예: '1인 가구 식사', '프리랜서 재무관리')"
+      required: true
+    existing_hypothesis:
+      source: "user_input"
+      prompt: "기존 가설이 있으면 입력하세요 (없으면 엔터)"
+      required: false
+      default: "없음"
+
+competitor_analyst:
+  variables:
+    top_opportunities:
+      source: "file"
+      path: ".agent-state/outputs/pain-points.md"
+      inject_method: "section"
+      section: "top_3_opportunities"
+    domain:
+      source: "file"
+      path: ".agent-state/outputs/pain-points.md"
+      inject_method: "field"
+      field: "domain"
+    existing_solutions:
+      source: "file"
+      path: ".agent-state/outputs/pain-points.md"
+      inject_method: "section"
+      section: "findings.existing_solutions"
+
+bm_designer:
+  variables:
+    positioning:
+      source: "file"
+      path: ".agent-state/outputs/competitor-analysis.md"
+      inject_method: "section"
+      section: "positioning_recommendation"
+    competitor_pricing:
+      source: "file"
+      path: ".agent-state/outputs/competitor-analysis.md"
+      inject_method: "section"
+      section: "direct_competitors.pricing"
+    user_wtp:
+      source: "file"
+      path: ".agent-state/outputs/pain-points.md"
+      inject_method: "section"
+      section: "findings.willingness_to_pay"
+
+business_planner:
+  variables:
+    all_outputs:
+      source: "file_list"
+      paths:
+        - ".agent-state/outputs/pain-points.md"
+        - ".agent-state/outputs/competitor-analysis.md"
+        - ".agent-state/outputs/business-model.md"
+      inject_method: "full_content"
+      separator: "\n\n---\n\n"
+
+gtm_strategist:
+  variables:
+    business_plan:
+      source: "file"
+      path: ".agent-state/outputs/business-plan.md"
+      inject_method: "full_content"
+
+# ============================================================
+# CTO
+# ============================================================
+
+prd_architect:
+  variables:
+    product_brief:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "full_content"
+    competitor_features:
+      source: "file"
+      path: ".agent-state/outputs/competitor-analysis.md"
+      inject_method: "section"
+      section: "feature_matrix"
+      required: false
+
+scope_guard:
+  variables:
+    prd:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "full_content"
+    tier_number:
+      source: "project_state"
+      field: "project.tier"
+    tier_limits:
+      source: "static_lookup"
+      lookup_table:
+        1: { p0_features: 1, apis: 3, screens: 2, dev_hours: 8 }
+        2: { p0_features: 3, apis: 5, screens: 4, dev_hours: 80 }
+        3: { p0_features: 5, apis: 10, screens: 8, dev_hours: 320 }
+        4: { p0_features: 10, apis: 20, screens: 15, dev_hours: 640 }
+      key: "project.tier"
+
+architect:
+  variables:
+    approved_prd:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "full_content"
+    scope_review:
+      source: "file"
+      path: ".agent-state/outputs/scope-review.md"
+      inject_method: "section"
+      section: "approved_scope"
+    budget:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "field"
+      field: "constraints.budget"
+    timeline:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "field"
+      field: "constraints.timeline"
+    tech_preference:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "field"
+      field: "constraints.tech_preference"
+      required: false
+
+frontend_engineer:
+  variables:
+    prd_screens:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "screens"
+    architecture:
+      source: "file"
+      path: ".agent-state/outputs/architecture.md"
+      inject_method: "full_content"
+    design_delivery:
+      source: "file"
+      path: ".agent-state/outputs/design-delivery.md"
+      inject_method: "full_content"
+      required: false
+
+backend_engineer:
+  variables:
+    prd_api:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "api_endpoints"
+    prd_db:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "db_schema"
+    architecture:
+      source: "file"
+      path: ".agent-state/outputs/architecture.md"
+      inject_method: "full_content"
+
+code_reviewer:
+  variables:
+    codebase:
+      source: "codebase"
+      inject_method: "file_tree_and_key_files"
+      note: "OpenClaw가 코드베이스를 자동으로 읽어 주입"
+
+devops:
+  variables:
+    architecture:
+      source: "file"
+      path: ".agent-state/outputs/architecture.md"
+      inject_method: "section"
+      section: "tech_stack"
+
+# ============================================================
+# CDO
+# ============================================================
+
+ui_designer:
+  variables:
+    prototype:
+      source: "file"
+      path: ".agent-state/outputs/design-upgrade-brief.md"
+      inject_method: "section"
+      section: "prototype_access"
+    prd_screens:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "screens"
+    brand_keywords:
+      source: "file"
+      path: ".agent-state/outputs/design-upgrade-brief.md"
+      inject_method: "field"
+      field: "brand_keywords"
+
+visual_director:
+  variables:
+    app_name:
+      source: "file"
+      path: ".agent-state/outputs/design-upgrade-brief.md"
+      inject_method: "field"
+      field: "product_name"
+    app_purpose:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "field"
+      field: "solution"
+    target_audience:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "section"
+      section: "target_user"
+    brand_keywords:
+      source: "file"
+      path: ".agent-state/outputs/design-upgrade-brief.md"
+      inject_method: "field"
+      field: "brand_keywords"
+    current_issues:
+      source: "file"
+      path: ".agent-state/outputs/design-audit.md"
+      inject_method: "section"
+      section: "current_state_analysis.issues"
+
+image_generator:
+  variables:
+    brand_context:
+      source: "file"
+      path: ".agent-state/outputs/brand-identity.md"
+      inject_method: "full_content"
+      required: false
+      fallback:
+        source: "file"
+        path: ".agent-state/outputs/design-upgrade-brief.md"
+        inject_method: "field"
+        field: "brand_keywords"
+    app_info:
+      source: "file"
+      path: ".agent-state/outputs/design-upgrade-brief.md"
+      inject_method: "full_content"
+
+screenshot_designer:
+  variables:
+    screen_list:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "screens"
+    brand:
+      source: "file"
+      path: ".agent-state/outputs/brand-identity.md"
+      inject_method: "section"
+      section: "color_palette,typography"
+      required: false
+
+aso_optimizer:
+  variables:
+    screenshots:
+      source: "file"
+      path: ".agent-state/outputs/store-screenshots.md"
+      inject_method: "full_content"
+    product_brief:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "full_content"
+    competitors:
+      source: "file"
+      path: ".agent-state/outputs/competitor-analysis.md"
+      inject_method: "section"
+      section: "direct_competitors"
+      required: false
+
+design_to_code_bridge:
+  variables:
+    brand_identity:
+      source: "file"
+      path: ".agent-state/outputs/brand-identity.md"
+      inject_method: "full_content"
+    architecture:
+      source: "file"
+      path: ".agent-state/outputs/architecture.md"
+      inject_method: "section"
+      section: "tech_stack,project_structure"
+    design_audit:
+      source: "file"
+      path: ".agent-state/outputs/design-audit.md"
+      inject_method: "section"
+      section: "improvement_plan"
+
+# ============================================================
+# CGO
+# ============================================================
+
+acquisition_strategist:
+  variables:
+    launch_brief:
+      source: "file"
+      path: ".agent-state/outputs/launch-brief.md"
+      inject_method: "full_content"
+    target_user:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "section"
+      section: "target_user"
+    budget:
+      source: "user_input"
+      prompt: "월간 마케팅 예산을 입력하세요 (예: $100)"
+      required: true
+    tier:
+      source: "project_state"
+      field: "project.tier"
+
+copy_strategist:
+  variables:
+    acquisition_strategy:
+      source: "file"
+      path: ".agent-state/outputs/acquisition-strategy.md"
+      inject_method: "section"
+      section: "priority_order"
+    product_brief:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "full_content"
+    brand_keywords:
+      source: "file"
+      path: ".agent-state/outputs/brand-identity.md"
+      inject_method: "field"
+      field: "mood_keywords"
+      required: false
+
+ads_operator:
+  variables:
+    acquisition_strategy:
+      source: "file"
+      path: ".agent-state/outputs/acquisition-strategy.md"
+      inject_method: "full_content"
+    ad_copy:
+      source: "file"
+      path: ".agent-state/outputs/copy-package.md"
+      inject_method: "section"
+      section: "ad_copy"
+    creative_assets:
+      source: "file"
+      path: ".agent-state/outputs/generated-assets.md"
+      inject_method: "section"
+      section: "marketing_images"
+      required: false
+    platform:
+      source: "derived"
+      from: ".agent-state/outputs/acquisition-strategy.md"
+      field: "priority_order.1.channel"
+
+content_creator:
+  variables:
+    acquisition_strategy:
+      source: "file"
+      path: ".agent-state/outputs/acquisition-strategy.md"
+      inject_method: "section"
+      section: "channel_evaluation"
+    product_brief:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "full_content"
+    copy_package:
+      source: "file"
+      path: ".agent-state/outputs/copy-package.md"
+      inject_method: "section"
+      section: "brand_voice,landing_page"
+
+onboarding_designer:
+  variables:
+    product_description:
+      source: "file"
+      path: ".agent-state/outputs/prd.md"
+      inject_method: "section"
+      section: "user_stories"
+    core_feature:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "section"
+      section: "mvp_features"
+
+retention_manager:
+  variables:
+    product_info:
+      source: "file"
+      path: ".agent-state/outputs/launch-brief.md"
+      inject_method: "full_content"
+    current_metrics:
+      source: "user_input"
+      prompt: "현재 리텐션 데이터가 있으면 입력하세요 (D1, D7 등). 없으면 'no_data'"
+      required: false
+      default: "no_data"
+
+revenue_optimizer:
+  variables:
+    business_model:
+      source: "file"
+      path: ".agent-state/outputs/business-model.md"
+      inject_method: "section"
+      section: "pricing_strategy,unit_economics"
+    current_metrics:
+      source: "user_input"
+      prompt: "현재 수익 데이터가 있으면 입력하세요 (ARPU, 전환율 등). 없으면 'no_data'"
+      required: false
+      default: "no_data"
+
+growth_analyst:
+  variables:
+    acquisition_strategy:
+      source: "file"
+      path: ".agent-state/outputs/acquisition-strategy.md"
+      inject_method: "full_content"
+    launch_brief:
+      source: "file"
+      path: ".agent-state/outputs/launch-brief.md"
+      inject_method: "full_content"
+    metrics_data:
+      source: "user_input"
+      prompt: "현재까지의 핵심 메트릭을 입력하세요 (DAU, Activation Rate, D7 Retention, ARPU 등). 아직 없으면 'no_data'"
+      required: false
+    campaign_data:
+      source: "file"
+      path: ".agent-state/outputs/campaign-live.md"
+      inject_method: "full_content"
+      required: false
+
+# ============================================================
+# QUALITY GATES (검증 프롬프트)
+# ============================================================
+
+gate_1_product_brief:
+  variables:
+    document:
+      source: "file"
+      path: ".agent-state/outputs/product-brief.md"
+      inject_method: "full_content"
+  validation_prompt: |
+    Review this Product Brief against these mandatory criteria:
+    1. Problem: contains user quotes or data evidence (not just hypothesis)
+    2. Target User: specific persona (age, job, behavior pattern)
+    3. MVP Features: 1-3, each with "why_essential" explanation
+    4. Success Metrics: 2+, each measurable
+    
+    For each criterion, output: PASS or FAIL with specific reason.
+    Overall: PASS only if all 4 mandatory criteria pass.
