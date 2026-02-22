@@ -168,13 +168,29 @@ architect:
 
   on_complete:
     set:
-      current_agent: "parallel_dev"
+      current_agent: "quick_design_brief"
       updated_at: "{now}"
     append:
       decisions_log:
         - date: "{now}"
           agent: "architect"
           output: "architecture.md"
+
+quick_design_brief:
+  on_start:
+    set:
+      current_agent: "quick_design_brief"
+      updated_at: "{now}"
+
+  on_complete:
+    set:
+      current_agent: "parallel_dev"
+      updated_at: "{now}"
+    append:
+      decisions_log:
+        - date: "{now}"
+          agent: "quick_design_brief"
+          output: "design-delivery.md"
 
 parallel_dev:
   on_start:

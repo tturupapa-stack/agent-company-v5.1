@@ -238,11 +238,15 @@ gate_4_design_delivery:
           error: "에셋 파일 경로가 필요합니다"
 
   on_pass:
-    next_agent: "frontend_engineer"  # 디자인 적용
-    note: "기존 프로토타입에 디자인 적용"
+    branch:
+      - condition: "project.tier >= 3"
+        next_agent: "user_validation_gate"
+      - condition: "project.tier < 3"
+        next_agent: "gate_5_launch_brief"
   on_fail:
-    next_agent: "design_to_code_bridge"
-    max_retry: 2
+    next_agent: "ui_designer"
+    max_retry: 3
+    retry_counter: "iteration_count.cdo_cto_design_review"
 
 # ============================================================
 # GATE 5: Launch Brief (CTO → CGO)

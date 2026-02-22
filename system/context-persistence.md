@@ -20,7 +20,14 @@ cat > .agent-state/project.json << 'EOF'
   "blockers": [],
   "decisions_log": [],
   "metrics": {},
-  "iteration_count": { "cdo_cto": 0, "user_validation": 0 },
+  "iteration_count": {
+    "product_brief_revision": 0,
+    "prd_scope_revision": 0,
+    "code_review_revision": 0,
+    "cdo_cto_design_review": 0,
+    "user_validation_retry": 0,
+    "cbo_rollback": 0
+  },
   "created_at": "",
   "updated_at": ""
 }
