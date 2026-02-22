@@ -59,12 +59,12 @@ context_injection:
     optional: [".agent-state/outputs/design-delivery.md"]
     
   UI_Designer:
-    must_read: [".agent-state/outputs/prd.md"]
+    must_read: [".agent-state/outputs/prd.md", ".agent-state/outputs/design-upgrade-brief.md"]
     optional: [".agent-state/outputs/product-brief.md"]
     
   Acquisition_Strategist:
-    must_read: [".agent-state/outputs/launch-brief.md", ".agent-state/outputs/store-assets-package.md"]
-    optional: [".agent-state/outputs/product-brief.md"]
+    must_read: [".agent-state/outputs/launch-brief.md"]
+    optional: [".agent-state/outputs/store-assets-package.md", ".agent-state/outputs/product-brief.md"]
 ```
 
 ### 세션 복원

@@ -13,11 +13,11 @@
 ### Tier 2: Side Project
 | Phase | 소요 시간 | Active Agents | 비고 |
 |-------|----------|--------------|------|
-| Phase 1: CBO | 4시간 | 3개 | Pain Point, Competitor, BM |
+| Phase 1: CBO | 4시간 | 5개 | Pain Point, Competitor, BM, Business Planner, GTM |
 | Phase 2: CTO | 40시간 | 5개 | PRD~Code Review |
 | Phase 2.5: CDO | 8시간 | 3개 | UI, Image Gen, Screenshot |
-| Phase 3: CGO | 16시간 | 3개 | Acquisition, Copy, Analyst |
-| **Total** | **~70시간 (2주)** | **14개** | |
+| Phase 3: CGO | 16시간 | 2개 | Acquisition, Copy |
+| **Total** | **~70시간 (2주)** | **15개** | |
 
 ### Tier 3: Startup MVP
 | Phase | 소요 시간 | Active Agents | 비고 |

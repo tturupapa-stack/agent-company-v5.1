@@ -31,16 +31,16 @@
 
 ## Tier 2: Side Project (2주)
 
-### Active Agents: 14개
+### Active Agents: 15개
 ```
-CBO: Pain Point Hunter, Competitor Analyst, BM Designer, GTM Strategist (4)
+CBO: Pain Point Hunter, Competitor Analyst, BM Designer, Business Planner, GTM Strategist (5)
 CTO: PRD Architect, Scope Guard, Frontend, Backend, Code Reviewer (5)
 CDO: UI Designer, Image Generator, Screenshot Designer (3)
 CGO: Acquisition Strategist, Copy Strategist (2)
 ```
 
 ### 실행 흐름
-1. [Day 1-2] CBO: Pain Point → Competitor → BM → Product Brief
+1. [Day 1-2] CBO: Pain Point → Competitor → BM → Business Plan → Product Brief
 2. [Day 3] CTO: PRD → Scope Guard
 3. [Day 4-8] CTO: Development (Frontend + Backend)
 4. [Day 9] CDO: UI Polish + Icons
