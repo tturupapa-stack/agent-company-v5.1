@@ -19,8 +19,8 @@
 ```yaml
 must_read:
   - ".agent-state/outputs/launch-brief.md"
-  - ".agent-state/outputs/store-assets-package.md"  # 있으면
 optional:
+  - ".agent-state/outputs/store-assets-package.md"  # 있으면
   - ".agent-state/outputs/product-brief.md"  # 타겟 유저 참고
 ```
 

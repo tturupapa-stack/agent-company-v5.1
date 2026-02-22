@@ -245,16 +245,14 @@ ui_designer:
       updated_at: "{now}"
   on_complete:
     set:
-      current_agent: "visual_director"
+      current_agent: "parallel_design"
       updated_at: "{now}"
 
-visual_director:
-  on_complete:
+parallel_design:
+  on_start:
     set:
-      current_agent: "image_generator"
+      current_agent: "visual_director+image_generator"
       updated_at: "{now}"
-
-image_generator:
   on_complete:
     set:
       current_agent: "screenshot_designer"
