@@ -81,6 +81,27 @@ context_injection:
 .agent-state/project.json과 .agent-state/outputs/ 폴더를 읽어서 현재 상태를 파악해줘.
 ```
 
+### 정합성 검증
+시스템 YAML 파일 간 교차 정합성을 자동 검증하는 스크립트가 있다.
+7개 YAML + context-persistence.md를 대상으로 20개 체크(7개 카테고리)를 수행한다.
+
+```bash
+# 수동 실행
+~/.claude/.venv/bin/python3 ~/.claude/verify-consistency.py
+# Exit code: 0=전체 통과, 1=FAIL 있음, 2=스크립트 에러
+```
+
+**자동 실행 (Hook):** `~/.claude/system/*.yaml` 파일을 Edit/Write하면 PostToolUse hook이 자동으로 검증을 실행한다. FAIL 시 편집이 블로킹되고 상세 리포트가 피드백된다.
+
+검증 카테고리:
+1. Agent Name Consistency — transitions 기준 타 파일 커버리지
+2. Transition Route Consistency — next_agent 라우팅 일치
+3. File Path Consistency — output_file, must_read 경로 유효성
+4. Iteration Count Consistency — iteration_count 키 일치
+5. Parallel Group Consistency — 멤버 리스트/이름 유효성
+6. Counts & Lists — Division별 에이전트 수, skippable, all_output_files
+7. Internal Self-Consistency — id==key, execution 타입 일치
+
 ### 상태 업데이트 타이밍
 - Phase 시작 시: `current_phase`, `current_agent` 업데이트
 - 산출물 생성 시: `outputs/` 폴더에 저장
