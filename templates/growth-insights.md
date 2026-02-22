@@ -1,4 +1,4 @@
-# Growth Insights Report (CGO → CBO)
+# Growth Insights Report (CGO → CEO)
 
 ## Product Name:
 ## Period: [시작일] ~ [종료일]

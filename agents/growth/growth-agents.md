@@ -19,7 +19,7 @@
 ```yaml
 must_read:
   - ".agent-state/outputs/launch-brief.md"
-  - ".agent-state/outputs/store-assets.md"  # 있으면
+  - ".agent-state/outputs/store-assets-package.md"  # 있으면
 optional:
   - ".agent-state/outputs/product-brief.md"  # 타겟 유저 참고
 ```
@@ -587,7 +587,7 @@ You are a Growth Analyst measuring and interpreting growth data.
 - Recommendation must be honest — if data says kill, say kill
 ```
 
-### Quality Gate 통과 조건 (Growth Insights → CBO)
+### Quality Gate 통과 조건 (Growth Insights → CEO)
 `/system/quality-gates.md` Gate 6 참조
 
 ### 산출물 저장

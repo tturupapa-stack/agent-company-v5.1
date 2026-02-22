@@ -340,7 +340,7 @@ growth_analyst:
   writes:
     - path: "growth-insights.md"
       type: "handoff"
-      description: "CGO→CBO 피드백 (메트릭 + Go/No-Go + 전략 제안)"
+      description: "CGO→CEO 피드백 (메트릭 + Go/No-Go + 전략 제안)"
       gate: "gate_6_growth_insights"
 
 # ============================================================
@@ -368,7 +368,7 @@ human_inputs:
     description: "광고 캠페인 실황 (사람이 직접 입력)"
 
 # ============================================================
-# COMPLETE FILE LIST (29 output files)
+# COMPLETE FILE LIST (31 output files)
 # ============================================================
 
 all_output_files:
@@ -378,7 +378,7 @@ all_output_files:
   - "business-model.md"
   - "business-plan.md"
   - "product-brief.md"
-  # CTO (6)
+  # CTO (7)
   - "prd.md"
   - "scope-review.md"
   - "architecture.md"
@@ -386,7 +386,7 @@ all_output_files:
   - "backend-complete.md"
   - "code-review.md"
   - "deployment-config.md"
-  # CDO (7)
+  # CDO (8)
   - "design-upgrade-brief.md"
   - "design-audit.md"
   - "brand-identity.md"
@@ -395,7 +395,7 @@ all_output_files:
   - "aso-recommendations.md"
   - "design-delivery.md"
   - "store-assets-package.md"
-  # CGO (8)
+  # CGO (10)
   - "launch-brief.md"
   - "acquisition-strategy.md"
   - "copy-package.md"

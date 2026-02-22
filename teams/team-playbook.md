@@ -1,7 +1,7 @@
 # Agent Company v5.1 — Team Playbook
 # Claude Code Agent Teams 연동 가이드
 
-> 기존 32개 에이전트를 Claude Code Agent Teams의 **병렬 실행 구조**에 최적화한 5개 팀 템플릿.
+> 기존 27개 에이전트를 Claude Code Agent Teams의 **병렬 실행 구조**에 최적화한 5개 팀 템플릿.
 > `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 환경변수가 필요합니다.
 
 ---

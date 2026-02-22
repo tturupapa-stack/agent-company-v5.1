@@ -220,7 +220,7 @@ Frontend Engineer와 CDO 전체에 적용되는 7개 디자인 규칙:
 ```
 .agent-state/
 ├── project.json              # 프로젝트 상태 (CEO 관리)
-├── outputs/                  # 에이전트 산출물 (29개 파일)
+├── outputs/                  # 에이전트 산출물 (31개 파일)
 ├── archive/v{N}/             # 롤백 시 아카이브
 └── logs/
     └── decisions.md          # 기술/사업 결정 기록
