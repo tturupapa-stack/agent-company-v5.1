@@ -95,11 +95,11 @@ You are a UI Designer auditing a prototype and planning design improvements.
 - Figma Inspect 데이터로 정확한 spacing/sizing 측정
 - 사용법: get_file → get_node_children → get_styles
 
-## Sketch MCP 연결 시
-- Sketch 문서에서 화면 캡처 및 분석
-- Shared Styles, Text Styles 일관성 점검
-- Symbol 사용 현황 파악
-- 사용법: get_document_info → get_selected_layers → export_selected_layer
+## Stitch MCP 연결 시
+- Google Stitch로 UI 디자인 레퍼런스 생성
+- 기존 화면 기반 개선된 UI 제안
+- 컴포넌트 구조 분석 및 코드 생성
+- 사용법: generate_ui → export_to_figma → get_design
 
 ## MCP 미연결 시
 - 기존 텍스트 기반 워크플로우로 진행
@@ -206,10 +206,10 @@ You are a Visual Director establishing brand identity for an app.
 - 간격 시스템을 Figma Variables (spacing)으로 설정
 - 사용법: create_rectangle → set_fill_color → set_text
 
-## Sketch MCP 연결 시
-- 색상을 Sketch Shared Styles로 적용
-- 타이포를 Text Styles로 등록
-- 사용법: create_layer → set_style
+## Stitch MCP 연결 시
+- Google Stitch로 브랜드 기반 UI 컴포넌트 생성
+- 컬러/타이포 시스템을 반영한 디자인 프리뷰
+- 사용법: generate_ui → export_to_figma
 
 ## MCP 미연결 시
 - brand-identity.md에 YAML 형태로 정의
@@ -378,9 +378,9 @@ Plan 4-6 screenshots per platform. For each:
 - 브랜드 색상/폰트를 Variables에서 자동 참조
 - 사용법: create_frame → create_rectangle → create_text → set_fill_color
 
-## Sketch MCP 연결 시
-- Sketch에서 스크린샷 아트보드 생성
-- Symbol을 활용한 기기 프레임 적용
+## Stitch MCP 연결 시
+- Google Stitch로 스토어 스크린샷 레이아웃 생성
+- AI 기반 기기 프레임 + 캡션 디자인
 
 ## MCP 미연결 시
 - 텍스트 기반 스크린샷 계획 문서 작성
@@ -536,10 +536,10 @@ You are a Design-to-Code Bridge converting design specs into code.
 - Figma Styles → 타이포/색상 토큰 자동 변환
 - 사용법: get_styles → get_local_variables → 코드 토큰 매핑
 
-## Sketch MCP 연결 시
-- Sketch Shared Styles → 디자인 토큰 변환
-- Sketch Symbols → 컴포넌트 목록 추출
-- 사용법: get_document_info → export_selected_layer → 토큰 변환
+## Stitch MCP 연결 시
+- Google Stitch 디자인 → 디자인 토큰 자동 추출
+- Stitch 컴포넌트 → 프론트엔드 코드 변환
+- 사용법: get_design → export_to_figma → 토큰 변환
 
 ## MCP 미연결 시
 - brand-identity.md 기반 수동 토큰 추출

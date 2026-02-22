@@ -772,7 +772,7 @@ gate_3_design_upgrade_brief:
       required: true
     - field: "mcp_status"
       rule: "not_empty"
-      description: "MCP 연결 상태 (figma-mcp / sketch-mcp / image-gen-server / 없음)"
+      description: "MCP 연결 상태 (figma-mcp / stitch-mcp / image-gen-server / 없음)"
       required: true
 
   human_approval:
@@ -814,9 +814,9 @@ ui_designer:
       usage: "프로토타입 프레임 읽기, 컴포넌트 구조/색상/타이포 자동 분석"
       tools: ["get_design_context", "get_screenshot", "get_metadata"]
       fallback: "코드베이스/스크린샷 기반 수동 감사"
-    - name: "sketch-mcp"
-      usage: "Sketch 문서 화면 캡처, Shared Styles 점검"
-      tools: ["get_document_info", "get_selected_layers", "export_selected_layer"]
+    - name: "stitch-mcp"
+      usage: "Google Stitch로 UI 디자인 생성, 화면 레퍼런스 분석"
+      tools: ["generate_ui", "export_to_figma", "get_design"]
       fallback: "코드베이스 기반 수동 분석"
 
   output_file: ".agent-state/outputs/design-audit.md"
@@ -885,8 +885,8 @@ visual_director:
       usage: "색상 팔레트를 Figma Variables로 생성, 타이포 스케일을 Text Styles로 등록"
       tools: ["get_variable_defs", "get_design_context"]
       fallback: "brand-identity.md에 YAML로 정의"
-    - name: "sketch-mcp"
-      usage: "Sketch Shared Styles로 색상/타이포 적용"
+    - name: "stitch-mcp"
+      usage: "Google Stitch로 브랜드 컬러/타이포 기반 UI 컴포넌트 생성"
       fallback: "수동 토큰 정의"
 
   output_file: ".agent-state/outputs/brand-identity.md"
@@ -973,8 +973,8 @@ screenshot_designer:
     - name: "store-screenshot-mcp"
       repo: "k984530/store-screenshot-mcp"
       fallback: "Figma/Canva로 수동 제작 (human checkpoint)"
-    - name: "sketch-mcp"
-      usage: "Sketch 아트보드에서 스크린샷 레이아웃 생성"
+    - name: "stitch-mcp"
+      usage: "Google Stitch로 스토어 스크린샷 UI 레이아웃 생성"
       fallback: "수동 제작"
 
   prompt_file: "agents/design/design-agents.md"
@@ -1041,8 +1041,8 @@ design_to_code_bridge:
       usage: "Figma Variables → CSS 변수, Components → 컴포넌트 명세, Styles → 토큰 자동 변환"
       tools: ["get_variable_defs", "get_design_context", "get_code_connect_map"]
       fallback: "brand-identity.md 기반 수동 토큰 추출"
-    - name: "sketch-mcp"
-      usage: "Sketch Shared Styles → 디자인 토큰, Symbols → 컴포넌트 목록"
+    - name: "stitch-mcp"
+      usage: "Google Stitch 디자인 → 디자인 토큰 추출, 컴포넌트 코드 변환"
       fallback: "수동 토큰 추출"
 
   prompt_file: "agents/design/design-agents.md"
@@ -1091,7 +1091,7 @@ gate_4_design_delivery:
       required: true
     - field: "token_source"
       rule: "not_empty"
-      description: "토큰 소스 (Figma Variables / Sketch Styles / 수동 정의)"
+      description: "토큰 소스 (Figma Variables / Stitch Export / 수동 정의)"
       required: true
 
   human_approval:

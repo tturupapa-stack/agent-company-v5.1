@@ -8,7 +8,7 @@
 
 ### 토큰 소스
 - [ ] Figma Variables (figma-mcp로 추출)
-- [ ] Sketch Styles (sketch-mcp로 추출)
+- [ ] Stitch Export (stitch-mcp로 추출)
 - [ ] 수동 정의
 
 ### 디자인 토큰
@@ -82,7 +82,7 @@ elevation:
 ---
 ### Quality Gate 4 체크
 - [ ] 디자인 토큰 (컬러, 타이포, 스페이싱) 정의됨
-- [ ] 토큰 소스 명시 (Figma Variables / Sketch Styles / 수동 정의)
+- [ ] 토큰 소스 명시 (Figma Variables / Stitch Export / 수동 정의)
 - [ ] 컴포넌트별 상태 시안 (default, hover, disabled, error) 포함
 - [ ] 에셋 파일 경로 명시
 - [ ] Figma 파일 또는 디자인 스펙 문서 존재

@@ -176,7 +176,7 @@ Team Lead (Main Session)
 │   ├── Role: Visual Director + Design-to-Code Bridge
 │   ├── Context: agents/design/design-agents.md 섹션 2, 6
 │   ├── Task: 컬러/타이포/스페이싱 시스템, 디자인 토큰 코드 변환
-│   ├── MCP: figma-mcp (Figma Variables/Styles 생성), sketch-mcp
+│   ├── MCP: figma-mcp (Figma Variables/Styles 생성), stitch-mcp
 │   ├── Depends On: Lead (design-audit.md)
 │   ├── Parallel With: Teammate 2 (parallel_design 그룹)
 │   └── Output: .agent-state/outputs/brand-identity.md + design-delivery.md
@@ -193,7 +193,7 @@ Team Lead (Main Session)
     ├── Role: Screenshot Designer + ASO Optimizer
     ├── Context: agents/design/design-agents.md 섹션 4-5
     ├── Task: 앱스토어 스크린샷 + ASO 최적화
-    ├── MCP: figma-mcp (스크린샷 레이아웃), store-screenshot-mcp, sketch-mcp
+    ├── MCP: figma-mcp (스크린샷 레이아웃), store-screenshot-mcp, stitch-mcp
     ├── Depends On: Teammate 1 + 2 (parallel_design 완료 후)
     └── Output: .agent-state/outputs/store-screenshots.md + aso-recommendations.md
 ```
@@ -208,7 +208,7 @@ Design Upgrade Brief: .agent-state/outputs/design-upgrade-brief.md
 팀 구성:
 1. Brand Director — 브랜드 아이덴티티 수립 + 디자인 토큰 코드 변환.
    ~/.claude/agents/design/design-agents.md의 Visual Director + Design-to-Code Bridge 참고.
-   MCP: figma-mcp (Variables/Styles 생성), sketch-mcp.
+   MCP: figma-mcp (Variables/Styles 생성), stitch-mcp.
    WCAG AA 대비율 준수, Google Fonts 사용.
    output → brand-identity.md + design-delivery.md
 
@@ -220,7 +220,7 @@ Design Upgrade Brief: .agent-state/outputs/design-upgrade-brief.md
 
 3. Store Designer — 앱스토어 스크린샷 4-6장 + ASO 키워드 최적화.
    ~/.claude/agents/design/design-agents.md의 Screenshot Designer + ASO Optimizer 참고.
-   MCP: figma-mcp (레이아웃), store-screenshot-mcp, sketch-mcp.
+   MCP: figma-mcp (레이아웃), store-screenshot-mcp, stitch-mcp.
    output → store-screenshots.md + aso-recommendations.md
 
 Lead(나)는 디자인 감사(Design Audit) 수행 후 팀원에게 배포.
@@ -234,7 +234,7 @@ Store Designer는 병렬 완료 후 실행.
 | MCP | 사용 에이전트 | 용도 | Fallback |
 |-----|-------------|------|----------|
 | figma-mcp | Brand Director, Store Designer | Variables/Styles 생성, 레이아웃 | YAML 토큰 / 텍스트 명세 |
-| sketch-mcp | Brand Director, Store Designer | Shared Styles 적용 | 수동 정의 |
+| stitch-mcp | Brand Director, Store Designer | AI UI 생성, Figma 내보내기 | 텍스트 기반 디자인 명세 |
 | image-gen-server | Asset Creator | AI 이미지 생성 | Lucide/Heroicons |
 | store-screenshot-mcp | Store Designer | 스토어 스크린샷 | Figma/Canva 수동 |
 

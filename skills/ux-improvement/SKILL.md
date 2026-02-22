@@ -73,7 +73,7 @@ Phase 6: 검증 및 전후 비교
 ### MCP 도구 활용 (연결된 경우)
 
 - **Figma MCP 연결 시**: Figma 파일에서 직접 화면별 디자인 분석, Variables/Styles 일관성 점검
-- **Sketch MCP 연결 시**: Sketch 문서에서 화면 캡처, Shared Styles 분석
+- **Stitch MCP 연결 시**: Google Stitch에서 UI 디자인 생성, 컴포넌트 분석
 - **MCP 미연결 시**: 기존 코드 기반 분석 워크플로우로 진행 (fallback)
 
 ### 아이콘 사용 현황 점검 (Critical 이슈)

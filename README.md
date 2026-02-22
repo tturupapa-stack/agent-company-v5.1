@@ -84,7 +84,7 @@ CDO + CTO Frontend에서 외부 디자인 도구와 연동.
 | MCP Server | 용도 | 사용 에이전트 | Fallback |
 |------------|------|-------------|----------|
 | **figma-mcp** | Figma 디자인 읽기/쓰기, Variables/Styles | UI Designer, Visual Director, Screenshot Designer, Bridge, Frontend Engineer | 텍스트 기반 design-delivery.md |
-| **sketch-mcp** | Sketch Shared Styles, Symbols | UI Designer, Visual Director, Screenshot Designer, Bridge | 수동 토큰 정의 |
+| **stitch-mcp** | Google Stitch AI UI 생성, Figma 내보내기 | UI Designer, Visual Director, Screenshot Designer, Bridge | 텍스트 기반 디자인 명세 |
 | **image-gen-server** | AI 이미지 생성 (Replicate) | Image Generator | Lucide/Heroicons 라이브러리 |
 | **store-screenshot-mcp** | 스토어 스크린샷 생성 | Screenshot Designer | Figma/Canva 수동 제작 |
 

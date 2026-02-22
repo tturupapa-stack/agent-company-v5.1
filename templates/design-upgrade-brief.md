@@ -36,7 +36,7 @@
 
 ### MCP 연결 상태
 - [ ] figma-mcp (Figma 디자인 읽기/쓰기)
-- [ ] sketch-mcp (Sketch 파일 접근)
+- [ ] stitch-mcp (Google Stitch AI UI 생성)
 - [ ] image-gen-server (AI 이미지 생성)
 - [ ] 없음 (텍스트 기반 진행)
 
